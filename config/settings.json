@@ -1,0 +1,29 @@
+{
+    "paths": {
+        "filezilla": "C:/Program Files/FileZilla FTP Client/filezilla.exe",
+        "putty": "C:/Program Files/PuTTY/putty.exe",
+        "pcanywhere": "",
+        "vnc": "C:/Program Files/TightVNC/tvnviewer.exe"
+    },
+    "settings": {
+        "vpnauto": true,
+        "rdpres": false,
+        "sidepop": false,
+        "misc2": false
+    },
+    "colors": {
+        "menu_background": "#202020",
+        "menu_text": "#FFFFFF",
+        "menu_border": "#404040",
+        "menu_item_selected": "#404040",
+        "menu_item_disabled": "#808080",
+        "button_background": "#606060",
+        "button_hover": "#303030",
+        "button_pressed": "#606060",
+        "button_disabled": "#808080",
+        "button_text": "#FFFFFF",
+        "button_border": "#FFFFFF",
+        "button_text_disabled": "#A0A0A0",
+        "label_text": "#FFFFFF"
+    }
+}

@@ -1,0 +1,10 @@
+SID=341795
+SiteName=COPC COLUMBUS
+SP_IP=172.17.34.227
+Host_IP=172.17.34.226
+Display_IP=
+TunnelType=BarracudaF12-TINA
+Modality=MR
+Port=
+SW_Version=SM V6.0SP2004*
+Scanner=Orian_Series(Win10)

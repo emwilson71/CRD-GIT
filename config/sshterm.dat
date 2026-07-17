@@ -1,0 +1,11 @@
+dir /w
+licenseCheck -list
+licenseCheck -opt
+B1shimset 3 0 0
+rfamp -p40000 -mhi \
+rfout 51 1
+rfout 54 1
+rfout 57 1
+rfout 60 1
+rfout 63 1
+spvtest

@@ -1,0 +1,43 @@
+# FOLDERS
+.backup/
+build/
+dist/
+python/
+data/
+downloads/
+py/
+
+# Python cache & compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Packaging / PyInstaller
+*.egg-info/
+*.spec
+*.manifest
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Logs and temporary files
+*.log
+logs/
+temp/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Optional but recommended
+*.tmp

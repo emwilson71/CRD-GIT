@@ -1,0 +1,122 @@
+{
+    "CT": {
+        "SP": {
+            "RDP": true,
+            "FTP": true,
+            "TERM": true
+        },
+        "SM": {
+            "FTP": false,
+            "TERM": false
+        },
+        "DISPLAY": {
+            "FTP": false,
+            "TERM": false
+        },
+        "REMOTE": {
+            "VNC": false,
+            "PC ANYWHERE": false,
+            "DIAG": false
+        },
+        "UPDATE": {
+            "TVR CONFIG": false,
+            "PQUBE": false
+        }
+    },
+    "MR": {
+        "SP": {
+            "RDP": true,
+            "FTP": true,
+            "TERM": true
+        },
+        "SM": {
+            "FTP": true,
+            "TERM": true
+        },
+        "DISPLAY": {
+            "FTP": false,
+            "TERM": false
+        },
+        "REMOTE": {
+            "VNC": false,
+            "PC ANYWHERE": false,
+            "DIAG": false
+        },
+        "UPDATE": {
+            "TVR CONFIG": false,
+            "PQUBE": false
+        }
+    },
+    "VL": {
+        "SP": {
+            "RDP": true,
+            "FTP": true,
+            "TERM": true
+        },
+        "SCAN/HOST": {
+            "FTP": false,
+            "TERM": false
+        },
+        "DISPLAY": {
+            "FTP": false,
+            "TERM": false
+        },
+        "REMOTE": {
+            "VNC": false,
+            "PC ANYWHERE": false,
+            "DIAG": false
+        },
+        "UPDATE": {
+            "TVR CONFIG": false,
+            "PQUBE": false
+        }
+    },
+    "XR": {
+        "SP": {
+            "RDP": true,
+            "FTP": true,
+            "TERM": true
+        },
+        "SCAN/HOST": {
+            "FTP": false,
+            "TERM": false
+        },
+        "DISPLAY": {
+            "FTP": false,
+            "TERM": false
+        },
+        "REMOTE": {
+            "VNC": false,
+            "PC ANYWHERE": false,
+            "DIAG": false
+        },
+        "UPDATE": {
+            "TVR CONFIG": false,
+            "PQUBE": false
+        }
+    },
+    "XA": {
+        "SP": {
+            "RDP": true,
+            "FTP": true,
+            "TERM": true
+        },
+        "SCAN/HOST": {
+            "FTP": false,
+            "TERM": false
+        },
+        "DISPLAY": {
+            "FTP": false,
+            "TERM": false
+        },
+        "REMOTE": {
+            "VNC": false,
+            "PC ANYWHERE": false,
+            "DIAG": false
+        },
+        "UPDATE": {
+            "TVR CONFIG": false,
+            "PQUBE": false
+        }
+    }
+}
