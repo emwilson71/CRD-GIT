@@ -7,6 +7,8 @@ Interface to manage remote connectivity and scripts to preform tasks simply
 
 FILE STRUCTURE
 
+TEST
+
 CRD/
 ├── CRD.exe
 ├── config/
