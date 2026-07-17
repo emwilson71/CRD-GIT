@@ -1,0 +1,244 @@
+{
+    "path": "C:/CRD/downloads/acqman-status2_202606090230.SIGUSR1",
+    "extensions": ".acqsts, .sigusr1,",
+    "main_term": "Enter Coil Name Here",
+    "following_terms": "--scan completed, Measuring the TGC, Set Transmit Channel=, B1offset, TGC power1, TGC power2, reflect1, reflect2, RFAmp mode, RFL type :, RFL axis :, TGC_RFOut_ratio        :, RF Level :, Measuring the MultiTGC, TGC power rfOut1, TGC power reflect1:, TGC power rfOut2, TGC power reflect2:, TGC RFOut ratio:, center frequency :, S.A.R. (WB), S.A.R. (Head), S.A.R. (Partial), Sequence  Name      =, Receiver Gain :",
+    "main_context": "0,0",
+    "following_context": "0,0",
+    "save_entries": true,
+    "window_geometry": "1033x753+163+438",
+    "log_viewer_geometry": "832x700+333+102",
+    "quick_searches": {
+        "Coil Search - Octave Head": {
+            "extensions": "",
+            "main_term": "Octave Head",
+            "following_terms": "--scan completed, Measuring the TGC, Set Transmit Channel=, B1offset, TGC power1, TGC power2, reflect1, reflect2, RFAmp mode, RFL type :, RFL axis :, TGC_RFOut_ratio        :, RF Level :, Measuring the MultiTGC, TGC power rfOut1, TGC power reflect1:, TGC power rfOut2, TGC power reflect2:, TGC RFOut ratio:, center frequency :, S.A.R. (WB), S.A.R. (Head), S.A.R. (Partial), Sequence  Name      =, Receiver Gain :",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "Coil Search": {
+            "extensions": ".acqsts, .sigusr1,",
+            "main_term": "Enter Coil Name Here",
+            "following_terms": "--scan completed, Measuring the TGC, Set Transmit Channel=, B1offset, TGC power1, TGC power2, reflect1, reflect2, RFAmp mode, RFL type :, RFL axis :, TGC_RFOut_ratio        :, RF Level :, Measuring the MultiTGC, TGC power rfOut1, TGC power reflect1:, TGC power rfOut2, TGC power reflect2:, TGC RFOut ratio:, center frequency :, S.A.R. (WB), S.A.R. (Head), S.A.R. (Partial), Sequence  Name      =, Receiver Gain :",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": false
+        },
+        "RM Log - Mounts": {
+            "extensions": "*rm*,",
+            "main_term": ": OFF, : ON,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "Master Error Search (non-compressed)": {
+            "extensions": "",
+            "main_term": "Error Code , ErrorMessage =, either VFEP has not replied, write error,",
+            "following_terms": "",
+            "main_context": "5,3",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "ACQMAN - Error Code :": {
+            "extensions": "acqman-status, .acqsts, .sigusr1, .slg, *snapshot.log",
+            "main_term": "Error Code :, either VFEP has not replied, either SHC has not replied, Unable to make socket connection, RMComm Died, not found in coil database",
+            "following_terms": "",
+            "main_context": "5,3",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "GCoilTemp Log Viewer (OLPs)": {
+            "extensions": "gcoil*.log,",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "RM Log - Mounts (Savelog Search)": {
+            "extensions": "ACQMAN.cab, /ACQMA*/, *rm*,",
+            "main_term": ": OFF, : ON,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "GCoilTemp Log Viewer (OLPs) (Savelog Search)": {
+            "extensions": "/GCoilTemp/, /savelog*/, gcoil*.log,",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "Coil Search (Savelog Search)": {
+            "extensions": "ACQMAN.cab, /ACQMA*/,",
+            "main_term": "Enter Coil Name Here",
+            "following_terms": "--scan completed, Measuring the TGC, TGC power1, TGC_RFOut_ratio        :, RF Level :, Measuring the MultiTGC, TGC power rfOut1, TGC power reflect1:, TGC RFOut ratio:, center frequency :, S.A.R. (WB), S.A.R. (Head), S.A.R. (Partial), Sequence  Name      =, Receiver Gain :",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": false
+        },
+        "MPlusErrorDispLog - Errors (Savelog Search)": {
+            "extensions": "/ErrorDisplay/, MPLus*.txt,",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "MPlusErrorDispLog - Errors": {
+            "extensions": "*MPLus*.txt,",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "RM Log - Coil ID": {
+            "extensions": "*rm*,",
+            "main_term": "tcmcont, g1,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "RM Log - Coil ID (Savelog Search)": {
+            "extensions": "ACQMAN.cab, /ACQMA*/, *rm*,",
+            "main_term": "tcmcont, g1,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "SYSLOG_engine - Error Search (Savelog Search)": {
+            "extensions": "SYSLOG_engine.tar.bz2,",
+            "main_term": "error code, write error,",
+            "following_terms": "",
+            "main_context": "2,2",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "SYSLOG_engine - Error Search": {
+            "extensions": "SYSLOG_engine*,",
+            "main_term": "Hot-Spare, Segment, error code, write error, RBC_ABORT, RawinfoId",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "SYSLOG_engine - RBc Scan": {
+            "extensions": "SYSLOG_engine*,",
+            "main_term": "RBC_WAITFOR, RB control, RBC_FINISH, RBC_ABORT,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "ACQMAN - Error Code : (Savelog Search)": {
+            "extensions": "ACQMAN.cab, /ACQMA*/, /savelog*/,",
+            "main_term": "Error Code :, either VFEP has not replied, either SHC has not replied, Unable to make socket connection, RMComm Died, not found in coil database",
+            "following_terms": "",
+            "main_context": "5,3",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "ACQMAN - Magnet Check (Savelog Search)": {
+            "extensions": "ACQMAN.cab, /ACQMA*/,",
+            "main_term": "Helium Level, Shield temperature, Magnet pressure, Heater power, -normal,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "ACQMAN - Magnet Check": {
+            "extensions": ".acqsts, .sigusr1, .slg,",
+            "main_term": "Helium Level, Shield temperature, Magnet pressure, Heater power, -normal,",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "VisartConditionHistory2": {
+            "extensions": "VisartConditionHistory2.csv",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        },
+        "Cooling Cabinet": {
+            "extensions": "*coolingcabi.txt",
+            "main_term": "",
+            "following_terms": "",
+            "main_context": "0,0",
+            "following_context": "0,0",
+            "auto_start": true
+        }
+    },
+    "quick_search_order": [
+        "ACQMAN - Error Code :",
+        "ACQMAN - Error Code : (Savelog Search)",
+        "ACQMAN - Magnet Check",
+        "ACQMAN - Magnet Check (Savelog Search)",
+        "Coil Search",
+        "Coil Search (Savelog Search)",
+        "Coil Search - Octave Head",
+        "Cooling Cabinet",
+        "GCoilTemp Log Viewer (OLPs)",
+        "GCoilTemp Log Viewer (OLPs) (Savelog Search)",
+        "MPlusErrorDispLog - Errors",
+        "MPlusErrorDispLog - Errors (Savelog Search)",
+        "Master Error Search (non-compressed)",
+        "RM Log - Coil ID",
+        "RM Log - Coil ID (Savelog Search)",
+        "RM Log - Mounts",
+        "RM Log - Mounts (Savelog Search)",
+        "SYSLOG_engine - Error Search",
+        "SYSLOG_engine - Error Search (Savelog Search)",
+        "SYSLOG_engine - RBc Scan",
+        "VisartConditionHistory2"
+    ],
+    "manage_quick_search_geometry": "1409x632+-4+64",
+    "cycle_across_files": true,
+    "search_locations": {
+        "CANON/MR": "C:/CANON/{MR}",
+        "MR Documents": "C:/CANON/{MR}/MR Documents"
+    },
+    "search_location_order": [
+        "CANON/MR",
+        "MR Documents"
+    ],
+    "last_browse_location": "C:/CANON/{MR}",
+    "show_last_file": true,
+    "date_filter_enabled": true,
+    "start_date": "2026-07-03",
+    "end_date": "2026-07-10",
+    "quick_date": "1 week",
+    "fixs_base_url": "https://canonmedical.my.salesforce.com/_ui/search/ui/UnifiedSearchResults?searchType=2&sen=a02&sen=a0s&sen=500&sen=005&sen=a0Y&sen=ka&sen=00O&str=\"\" \"\"",
+    "intranet_base_url": "https://intranet.cmsu.com/_layouts/15/osssearchresults.aspx?u=https%3A%2F%2Fintranet%2Ecmsu%2Ecom&k=\"\" \"\"",
+    "seven_zip_path": "C:\\Program Files\\7-Zip\\7z.exe",
+    "recent_paths": [],
+    "search_paths": {
+        "CANON/ERRORS": "C:/CANON/ERRORS",
+        "Recent 1": "C:/Checking Logs for LogScraper/Magnet Logs/OR200_2024",
+        "Recent 2": "C:/Checking Logs for LogScraper/Magnet Logs/OR97_2024/20240202000000000_MSUP.cab",
+        "Recent 3": "C:/Checking Logs for LogScraper/Magnet Logs",
+        "Recent 4": null,
+        "{TEMPORARY TROUBLESHOOTING Folder}": "C:/CANON/ERRORS/{TEMPORARY TROUBLESHOOTING Folder}",
+        "CRD DOWNLOADS": "C:/CRD/downloads"
+    },
+    "search_path_order": [
+        "Recent 1",
+        "CANON/ERRORS",
+        "{TEMPORARY TROUBLESHOOTING Folder}",
+        "CRD DOWNLOADS",
+        "Recent 2",
+        "Recent 3",
+        "Recent 4"
+    ],
+    "recent_count": 4,
+    "configure_graph": {}
+}

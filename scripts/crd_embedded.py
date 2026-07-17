@@ -105,6 +105,7 @@ class CustomMessageBox(QMessageBox):
         return self.exec()
 # ----------------------------------------------------------------------        
 class Styles:
+    # Menu
     MENU_STYLE = """
         QMenu {
             background-color: #202020;
@@ -134,16 +135,9 @@ class Styles:
             margin-left: 10px;
             margin-right: 10px;
         }
-        QMenu::indicator {
-            width: 13px;
-            height: 13px;
-        }
-        QMenu::icon:checked {  /* For checkable menu items, if any */
-            background: #404040;
-            border: 1px inset #404040;
-        }
     """
-# ----------------------------------------------------------------------      
+
+    # Buttons
     BUTTON_STYLE = """
         QPushButton {
             background-color: #606060;
@@ -153,21 +147,41 @@ class Styles:
             font-weight: bold;
             border-radius: 4px;
         }
-
         QPushButton:hover {
             background-color: #303030;
             border: 1px solid #ffffff;
         }
         QPushButton:pressed {
-            background-color: #606060;  
+            background-color: #606060;
         }
         QPushButton:disabled {
             background-color: #808080;
             color: #A0A0A0;
         }
     """
-# FIXED WIDTH
-    CONFIG_BUTTON_STYLE = """
+    BUTTON_STYLE_ARRAY = """
+        QPushButton {
+            background-color: #606060;
+            padding: 4px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        QPushButton:hover {
+            background-color: #303030;
+            border: 1px solid #ffffff;
+        }
+        QPushButton:pressed {
+            background-color: #606060;
+        }
+        QPushButton:disabled {
+            background-color: #808080;
+            color: #A0A0A0;
+        }
+    """
+
+    CONFIG_BUTTON_STYLE_ARRAY = """
         QPushButton {
             background-color: #606060;
             padding: 4px;
@@ -185,15 +199,15 @@ class Styles:
             border: 1px solid #ffffff;
         }
         QPushButton:pressed {
-            background-color: #606060;  
+            background-color: #606060;
         }
         QPushButton:disabled {
             background-color: #808080;
             color: #A0A0A0;
         }
     """
-# ----------------------------------------------------------------------  
-# EDIT BOXES
+
+    # Edit Boxes
     LINE_EDIT_STYLE = """
         QLineEdit {
             background-color: #404040;
@@ -204,6 +218,7 @@ class Styles:
             height: 22px;
         }
     """
+
     SID_EDIT_BOX_STYLE = """
         QLineEdit {
             background-color: lightgray;
@@ -214,16 +229,26 @@ class Styles:
             height: 26px;
         }
     """
-# ----------------------------------------------------------------------     
+
+    # Labels
     STD_LABEL_STYLE = """
-    QLabel {
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-        height: 26px;
-    }
+        QLabel {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            height: 26px;
+        }
     """
-# ----------------------------------------------------------------------  
+
+    ERROR_LABEL = """
+        QLabel {
+            color: red;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    """
+
+    # Other widgets
     GROUP_BOX = """
         QGroupBox {
             color: white;
@@ -237,180 +262,8 @@ class Styles:
             padding: 0 3px;
         }
     """
-# ----------------------------------------------------------------------  
-    COMBO_BOX = """QComboBox {
-        background-color: #404040;
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-        border: none;
-        padding: 5px;
-    }
-    QComboBox QAbstractItemView {
-        background-color: #404040;
-        color: white;
-        selection-background-color: #606060;
-    }
-    """
-# ----------------------------------------------------------------------   
-    MESSAGE_BOX = """  
-        QMessageBox {  
-            background-color: #404040;  
-            color: lightgray;                 
-        }  
-        QMessageBox QLabel {  
-            color: white;             
-        }  
-        QMessageBox QPushButton {  
-            background-color: gray;  
-            color: white;               
-            border: 1px solid gray;      
-            padding: 5px;               
-        }  
-        QMessageBox QPushButton:hover {  
-            background-color: red;  
-        }  
-    """
-# ----------------------------------------------------------------------     
-    DYNAMIC_HEADER_STYLE = """
-        QLabel {
-            background-color: #202020;
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            padding: 10px;
-            border-radius: 4px;
-        }
-    """
-# ----------------------------------------------------------------------  
-    ERROR_LABEL = """
-            QLabel{
-                color: red;
-                font-size: 12px;
-                font-weight: bold;
-                }
-            """
-# ----------------------------------------------------------------------  
-    SIDEBAR_STYLE =("""
-            QWidget {
-                background-color: #202020;
-                color: white;
-            }
-            QTreeWidget {
-                background-color: #202020;
-                color: white;
-                border: 1px solid #404040;
-                outline: none;
-                
-            }
-            QTreeWidget::item:selected {
-                background-color: #202020;
-                color: white;
-            }
-            QTreeWidget::verticalScrollBar {
-                background-color: #404040;
-                width: 15px;
-            }
-            QTreeWidget::handle:vertical {
-                background-color: #505050;
-                min-height: 20px;
-            }
-            QPushButton {
-                background-color: #606060;
-                padding: 3px;
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 4px;
-                min-height: 10px;
-                margin-bottom: 3px;    
-            }
-            QPushButton:hover {
-                background-color: #303030;
-                border: 1px solid #ffffff;
-            }
-            QPushButton:pressed {
-                background-color: #252020;; 
-            }
-        """)
-# ----------------------------------------------------------------------     
-    WEB_VIEW_WIDGET=("""
 
-                    QTextBrowser {
-                        background-color: #404040;
-                        color: white;
-                        border: none;
-                        font-family: 'Segoe UI', Arial, sans-serif;
-                        font-size: 16px;
-                        font-weight: bold;
-                        padding: 5px;
-                    }
-                    QTextBrowser a {
-                        color: #ffffff;
-                        text-decoration: none;
-                        font-weight: bold;
-                    }
-                    QTextBrowser a:hover {
-                        color: #ffff00;
-                        text-decoration: underline;
-                    }
-                    QTextBrowser a:visited {
-                        color: #ffffff;
-                    }
-                    .issues-block {
-                        background-color: #333333;
-                        border: 1px solid #555555;
-                        border-radius: 4px;
-                        padding: 10px 12px;
-                        font-family: Consolas, Monaco, monospace;
-                        font-size: 12px;
-                    }
-                    .issues-title {
-                        color: #00ff00;
-                        font-weight: bold;
-                        margin-bottom: 6px;
-                        font-size: 14px;
-                    }
-                    .spacer-10 {
-                        height: 10px;
-                    }
-                    .issues-block pre {
-                        white-space: pre-wrap;
-                        margin: 0;
-                    }
-                """)
-# ----------------------------------------------------------------------            
-    WIDGET_STYLE = """
-        QWidget {
-            background-color: #202020;
-        }
-        QGroupBox {
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            subcontrol-position: top left;
-            padding: 0 3px;
-        }
-        QLabel {
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        QLineEdit {
-            background-color: #404040;
-            color: white;
-            border: none;
-            padding: 5px;
-            font-size: 12px;
-        }
-        QCheckBox {
-            color: white;
-            font-size: 12px;
-        }
+    COMBO_BOX = """
         QComboBox {
             background-color: #404040;
             color: white;
@@ -424,36 +277,39 @@ class Styles:
             color: white;
             selection-background-color: #606060;
         }
-        """
-# ----------------------------------------------------------------------          
-    TAB_WIDGET_STYLE = """
-        QTabWidget::pane {
-            border: none;
+    """
+    DYNAMIC_HEADER_STYLE = """
+        QLabel {
             background-color: #202020;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
         }
-        QTabBar::tab {
+    """
+    WEB_VIEW_WIDGET = """
+        QTextBrowser {
             background-color: #404040;
             color: white;
-            border: 1px solid #404040;
-            border-bottom: none;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-            padding: 5px 10px;
-            margin-right: 2px;
-            font-family: Consolas, Monaco, monospace;
-            font-size: 14px;
+            border: none;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 5px;
         }
-        QTabBar::tab:selected {
-            background-color: #606060;
+        QTextBrowser a {
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: bold;
         }
+        QTextBrowser a:hover {
+            color: #ffff00;
+            text-decoration: underline;
         }
-        QTabBar::tab:hover {
-            border: 1px solid ##00a2ff;
-            border-bottom: none;
-        }
-
     """
-# ----------------------------------------------------------------------  
+
+    # Message Boxes
     MESSAGE_BOX_STYLE = """
         QMessageBox {
             background-color: #202020;
@@ -471,35 +327,34 @@ class Styles:
             border-radius: 4px;
             padding: 5px;
             width: 60px;
-            min-width: 60px;
-            max-width: 60px;
-            text-align: center;
-            
         }
         QMessageBox QPushButton:hover {
             background-color: #303030;
             border: 1px solid #ffffff;
         }
-        QMessageBox QPushButton:pressed {
-            background-color: #606060;
+    """
+    DIALOG = """
+        QDialog { 
+            background-color: #202020; 
+        }
+        QLabel { 
+            color: white; 
+            font-size: 12px; 
+            font-weight: bold; 
+        }
+        QLineEdit {
+            background-color: #404040;
+            color: white;
+            border: none;
+            padding: 5px;
+            font-size: 12px;
+        }
+        QCheckBox {
+            color: white;
+            font-size: 12px;
         }
     """
-# ----------------------------------------------------------------------  
-    DIALOG = """  
-        QDialog { background-color: #202020; }  
-        QLabel { color: white; font-size: 12px; font-weight: bold; }  
-        QLineEdit {  
-            background-color: #404040;  
-            color: white;  
-            border: none;  
-            padding: 5px;  
-            font-size: 12px;  
-        }  
-        QCheckBox {  
-            color: white;  
-            font-size: 12px;  
-        }  
-    """ 
+
     LOADING_DIALOG_STYLE = """
         QDialog {
             background-color: #202020;
@@ -520,17 +375,17 @@ class Styles:
             margin: 1px;
         }
     """
-# ----------------------------------------------------------------------      
+
     TEXT_EDIT_STYLE = """
         QTextEdit {
             background-color: #202020;
-            color: white; 
+            color: white;
             border: 1px solid #505050;
             padding: 4px;
         }
     """
-# ----------------------------------------------------------------------       
-    POPUP_DIALOG = ("""
+
+    POPUP_DIALOG = """
         QDialog {
             background-color: #202020;
             color: #ffffff;
@@ -542,7 +397,6 @@ class Styles:
             border: 1px solid #808080;
             padding: 4px;
         }
-        
         QPushButton {
             background-color: #606060;
             padding: 4px;
@@ -552,14 +406,22 @@ class Styles:
             border-radius: 4px;
         }
         QPushButton:hover {
-                background-color: #303030;
-                border: 1px solid #ffffff;
+            background-color: #303030;
+            border: 1px solid #ffffff;
         }
         QPushButton:pressed {
-            background-color: #606060;  
+            background-color: #606060;
         }
-    """)
-    
+    """
+
+    WEB_VIEW_STYLE = """
+        QVBoxLayout {
+            background-color: #202020;
+            border: none;
+        }
+    """
+
+    # Tab Widget (latest version)
     TAB_WIDGET_STYLE = """
         QTabWidget::pane {
             border: 1px solid #5A5A5A;
@@ -587,12 +449,38 @@ class Styles:
             border-bottom: none;
         }
     """
-    WEB_VIEW_STYLE = """
-            QVBoxLayout{
-                background-color: #202020;
-                border: none;"
-                }
-             """   
+
+    # Sidebar
+    SIDEBAR_STYLE = """
+        QWidget {
+            background-color: #202020;
+            color: white;
+        }
+        QTreeWidget {
+            background-color: #202020;
+            color: white;
+            border: 1px solid #404040;
+            outline: none;
+        }
+        QTreeWidget::item:selected {
+            background-color: #404040;
+            color: white;
+        }
+        QPushButton {
+            background-color: #606060;
+            padding: 3px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            min-height: 10px;
+            margin-bottom: 3px;
+        }
+        QPushButton:hover {
+            background-color: #303030;
+            border: 1px solid #ffffff;
+        }
+    """
 # ----------------------------------------------------------------------  
     @classmethod
     def apply_theme(cls, app, theme="dark"):

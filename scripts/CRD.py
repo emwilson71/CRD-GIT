@@ -9,7 +9,7 @@ ALSO GOT RID OF SOME DUPLICATE METHODS. 2025.12.24'
 VERSION = "CRD - Canon Remote Diagnostics v1.05"
 # ------------------------------------------------------------------------
 # LIBRARIES
-import sys, os, configparser, logging, platform, webbrowser, subprocess
+import sys, os, configparser, logging, platform, webbrowser, subprocess, warnings
 import threading, json, importlib, socket, re, glob, traceback, html, zipfile
 from pathlib import Path
 from datetime import datetime
@@ -20,10 +20,11 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QP
                              QScrollArea, QSizePolicy, QSpacerItem, QDialog, QTabWidget, QTextEdit,
                              QAction, QComboBox)
 from PyQt5.QtCore import QObject, pyqtSignal, Qt, QSize, QUrl, QTimer, QThread
-from PyQt5.QtGui import QPixmap, QScreen, QColor, QPainter, QBrush, QFont, QKeySequence, QTextCursor
+from PyQt5.QtGui import QPixmap, QScreen, QColor, QPainter, QBrush, QFont, QKeySequence, QTextCursor, QIcon
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile, QWebEngineSettings
 # MODULES
 import crd_matrix
+import crd_update
 import crd_putty
 from crd_sidebar import AppTreeWidget
 from crd_config import ConfigUI
@@ -33,6 +34,9 @@ from crd_framework import ApplicationFramework, TabManager, ButtonState
 from crd_led_monitor import (ConnectivityIndicator, ConnectionMonitorThread,
                               LedWidget, TunnelMonitorWorker)
 from crd_encryptor import load_key, decrypt_json, update_config
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+icon_path = lambda name: os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../html/image/", name))
 # ------------------------------------------------------------------------
 crd_logger = CRDLogger("CRD")
 logger = crd_logger.get_logger()
@@ -61,7 +65,6 @@ class CustomMessageBox(QMessageBox):
 # ------------------------------------------------------------------------
 class EditorDialog(QDialog):
     CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "config")
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -202,11 +205,12 @@ class DesktopApp(QMainWindow):
         self.sid_database_populated = False
         self.sid_data_manager = SIDDatabase()  
         self.setWindowTitle("CRD")
-        self.resize(1400, 800)
+        self.resize(1400, 1000)
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         central_widget.setStyleSheet("background-color: #202020;")
         main_layout = QVBoxLayout(central_widget)
+
 # ------------------------------------------------------------------------
 # HEADER
         self.dynamic_header = QLabel("", self)
@@ -243,7 +247,6 @@ class DesktopApp(QMainWindow):
         footer_layout.addWidget(led_label)
         self.connect_led = LedWidget(parent=self, diameter=20)
         footer_layout.addWidget(self.connect_led)
-
         footer_widget.setStyleSheet("background-color: #202020; color: white; padding: 1px;")
         main_layout.addWidget(footer_widget)
         self.load_config()
@@ -270,7 +273,6 @@ class DesktopApp(QMainWindow):
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar.setStyleSheet("background-color: #202020;")
         self.horizontal_layout.addWidget(sidebar)
-
 # SID INPUT
         sid_layout = QHBoxLayout()
         sid_layout.setSpacing(2)
@@ -281,24 +283,29 @@ class DesktopApp(QMainWindow):
         self.edit_box_sid.setToolTip("Enter SID to Query Database")
         sid_layout.addWidget(self.edit_box_sid)
         sidebar_layout.addLayout(sid_layout)
-
 # BUTTONS
         vpn_layout = QHBoxLayout()
         vpn_layout.setSpacing(2)
-        self.vpn_sp_button = self.create_button("🔎 QUERY", self.handle_button_click)
+        self.vpn_sp_button = self.create_button("QUERY", self.handle_button_click)
+        self.vpn_sp_button.setIcon(QIcon(icon_path("search.png")))
+        self.vpn_sp_button.setIconSize(QSize(24, 24))
         self.vpn_sp_button.setFixedHeight(26)
         self.vpn_sp_button.setFixedWidth(100)
-        self.vpn_sp_button.setToolTip("Query VPN Database With SID")
+        self.vpn_sp_button.setToolTip("Query")
         self.button_states.set_state("vpn_sp", "QUERY VPN DB")
         vpn_layout.addWidget(self.vpn_sp_button)
-        self.reset_btn = QPushButton("⟳ RESET") #⌧⊗
+        self.reset_btn = QPushButton("RESET")
+        self.reset_btn.setIcon(QIcon(icon_path("refresh.png")))
+        self.reset_btn.setIconSize(QSize(24, 24))
         self.reset_btn.setFixedWidth(100)
         self.reset_btn.setFixedHeight(26)
         self.reset_btn.setStyleSheet(Styles.BUTTON_STYLE)
         self.reset_btn.setToolTip("Reset and Clear Fields")
         self.reset_btn.clicked.connect(self.reset_state)
         vpn_layout.addWidget(self.reset_btn)
-        self.sid_add_btn = QPushButton("➕ ADD")
+        self.sid_add_btn = QPushButton("ADD")
+        self.sid_add_btn.setIcon(QIcon(icon_path("add.png")))
+        self.sid_add_btn.setIconSize(QSize(24, 24))
         self.sid_add_btn.setFixedWidth(100)
         self.sid_add_btn.setFixedHeight(26)
         self.sid_add_btn.setStyleSheet(Styles.BUTTON_STYLE)
@@ -306,7 +313,6 @@ class DesktopApp(QMainWindow):
         self.sid_add_btn.clicked.connect(self.add_to_sid_database)
         vpn_layout.addWidget(self.sid_add_btn)
         sidebar_layout.addLayout(vpn_layout)
-
 # EDIT BOXES
         row_layout_tunnel = QHBoxLayout()
         row_layout_tunnel.setSpacing(2)
@@ -377,13 +383,12 @@ class DesktopApp(QMainWindow):
             for btn_text, width in zip(buttons, widths):
                 button = QPushButton(btn_text)
                 button.setFixedSize(width, 22)
-                button.setStyleSheet(Styles.BUTTON_STYLE)
+                button.setStyleSheet(Styles.BUTTON_STYLE_ARRAY)
                 button.setEnabled(False)
                 self.buttons[(feature, btn_text)] = button
                 button.clicked.connect(lambda checked, t=btn_text, f=feature: self.on_button_click(f, t))
                 row_layout.addWidget(button)
             sidebar_layout.addLayout(row_layout)
-
 # MISC
         analytics_layout = QHBoxLayout()
         analytics_layout.setSpacing(2)
@@ -394,28 +399,24 @@ class DesktopApp(QMainWindow):
         
         dashboard_button = QPushButton("DASHBOARD")
         dashboard_button.setFixedSize(110, 22)
-        dashboard_button.setStyleSheet(Styles.BUTTON_STYLE)
+        dashboard_button.setStyleSheet(Styles.BUTTON_STYLE_ARRAY)
         dashboard_button.setEnabled(True) 
         dashboard_button.setToolTip("External Dashboard")
         
         launch_button = QPushButton("🗂 DOWNLOAD")
         launch_button.setFixedSize(120, 22)
-        launch_button.setStyleSheet(Styles.BUTTON_STYLE)
+        launch_button.setStyleSheet(Styles.BUTTON_STYLE_ARRAY)
         launch_button.setEnabled(True) 
         launch_button.setToolTip("Download Folder")
         launch_button.clicked.connect(lambda checked: self.on_button_click("MISC:", "DOWNLOADS"))
         analytics_layout.addWidget(launch_button)
 
         sidebar_layout.addLayout(analytics_layout)
-        
 # APP TREE
         self.app_tree = AppTreeWidget()
         sidebar_layout.addWidget(self.app_tree, stretch=1)
         # JS_EDIT 25.12.24. MOVED THESE CONNECTS THAT WERN'T BEING USED HERE AND ENABLED ONE. 
-        #self.sp_ip_edit_box.textChanged.connect(self.update_button_states)
-        #self.sm_ip_edit_box.textChanged.connect(self.update_button_states)
         self.sw_version_edit_box.textChanged.connect(self.update_button_states) #JS_EDIT 25.12.24. ENABLED THIS TO MAKE THE BUTTONS ACTIVE RIGHT AWAY WHEN SELECTING FROM DATABASE. 
-        #self.modality_edit_box.textChanged.connect(self.update_button_states)
         self.modality_edit_box.textChanged.connect(self.check_modality) #JS_EDIT 25.12.24. ADDED THIS TO PREVENT APP FROM FLASHING. 
         self.update_apptree()
 # ------------------------------------------------------------------------        
@@ -423,13 +424,48 @@ class DesktopApp(QMainWindow):
         modality = self.edit_boxes.get("Modality", QLineEdit()).text().strip().upper()
         logger.debug(f"[CRD UI] Updating AppTree with modality: {modality}")
         self.app_tree.load_apptree_data(modality)
+# ------------------------------------------------------------------------  
+    def check_for_updates(self):
+        try:
+            import crd_update
+            crd_update.check_for_updates(self)  
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Update Error:\n{str(e)}")
 # ------------------------------------------------------------------------
     def create_button(self, text, callback):
         button = QPushButton(text)
         button.setFixedHeight(26)
         button.setStyleSheet(Styles.BUTTON_STYLE)
         button.clicked.connect(callback)
-        return button
+        return button   
+# ------------------------------------------------------------------------      
+    def browser_go_home(self):
+        try:
+            crd_dir = os.path.dirname(os.path.abspath(__file__))
+            mr_path = os.path.normpath(os.path.join(crd_dir, "../html/mr.html"))
+            
+            if os.path.exists(mr_path):
+                url = QUrl.fromLocalFile(mr_path)
+            else:
+                url = QUrl("about:blank")
+                logger.warning("mr.html not found")
+            self.browser_view.setUrl(url)
+            self.address_bar.setText(url.toString())
+        except Exception as e:
+            logger.error(f"Failed to Load Home: {e}")
+            self.browser_view.setHtml("<h2>Error loading mr.html</h2>")
+# ------------------------------------------------------------------------  
+    def browser_navigate(self):
+        if hasattr(self, 'local_browser') and hasattr(self, 'address_bar'):
+            text = self.address_bar.text().strip()
+            if not text:
+                return
+            if not text.startswith(('http://', 'https://', 'file://')):
+                text = 'http://' + text
+            self.local_browser.setUrl(QUrl(text))
+# ------------------------------------------------------------------------  
+    def on_browser_url_changed(self, qurl: QUrl):
+        self.address_bar.setText(qurl.toString(QUrl.RemovePassword | QUrl.RemoveUserInfo))   
 # ------------------------------------------------------------------------    
     def update_versions_json():
         try:
@@ -617,7 +653,6 @@ class DesktopApp(QMainWindow):
             "SP": "SP:",
             "SM": "SM:"
         }
-
         if modality in self.actions_matrix:
             for feature, buttons in self.actions_matrix[modality].items():
                 mapped_feature = mapped_buttons.get(feature, feature)
@@ -658,16 +693,6 @@ class DesktopApp(QMainWindow):
                 msg_box.critical(self, "Error", f"Action Failed {feature} {button_text}")
         except Exception as e:
             logger.error(f"[CRD UI] Executing {feature} {button_text}: {str(e)}")
-            msg_box = CustomMessageBox()
-            msg_box.critical(self, "Error", f"Error Executing {feature} {button_text}: {str(e)}")
-# ------------------------------------------------------------------------
-# OMITTED FOR OTHER MODALITIES AND FUNCTIONS
-        #elif button_text == "VNC" and feature == "REMOTE:":
-            #logger.info("[CRD UI] Launching VNC (placeholder)")
-        #elif button_text == "PC ANY" and feature == "REMOTE:":
-            #logger.info("[CRD UI] Launching PCAnywhere (placeholder)")
-        #elif button_text == "PQUBE" and feature == "UPDATE:":
-            #logger.info("[CRD UI] Launching PQUBE (placeholder)")
 # ------------------------------------------------------------------------           
     def closeEvent(self, event):
         event.accept() 
@@ -798,14 +823,14 @@ class DesktopApp(QMainWindow):
         if self.dynamic_header:
             self.dynamic_header.setText("")
         logger.info("[CRD UI] Application state reset")
-# ------------------------------------------------------------------------
+# ------------------------------------------------------------------------        
     def init_tabs(self):
         logger.info("[CRD UI] Initializing tabs")
         while self.tab_widget.count():
             self.tab_widget.removeTab(0)
 # DATABASE
         dialog_tab = QWidget()
-        self.local_tab_index = self.tab_widget.addTab(dialog_tab, "   DATABASE   ")
+        self.local_tab_index = self.tab_widget.addTab(dialog_tab, " DATABASE ")
         dialog_tab.setEnabled(True)
         dialog_tab.setVisible(True)
         layout = QVBoxLayout(dialog_tab)
@@ -813,7 +838,7 @@ class DesktopApp(QMainWindow):
         try:
             if not hasattr(self, 'sid_data_manager'):
                 raise AttributeError("sid_data_manager not initialized")
-            
+
             self.sid_manager_window = SIDDatabaseWindow(
                 sid_manager=self.sid_data_manager,
                 main_app=self,
@@ -821,6 +846,7 @@ class DesktopApp(QMainWindow):
             )
             if self.sid_manager_window is None:
                 raise Exception("Failed to Create SIDDatabaseWindow")
+
             self.sid_manager_window.close_requested.connect(lambda data=None: self.on_sid_selected(data))
             self.sid_manager_window.close_requested.connect(self.cleanup_sid_manager)
             layout.addWidget(self.sid_manager_window)
@@ -834,20 +860,22 @@ class DesktopApp(QMainWindow):
             )
             msg_box.center()
             msg_box.exec_custom()
-# CONFIG
+# CONFIG TAB
         config_tab = QWidget()
-        config_tab_index = self.tab_widget.addTab(config_tab, "  CONFIG  ")
+        config_tab_index = self.tab_widget.addTab(config_tab, " CONFIG ")
         config_tab.setEnabled(True)
         config_tab.setVisible(True)
         config_layout = QVBoxLayout(config_tab)
         config_layout.setContentsMargins(10, 10, 10, 10)
         config_layout.setSpacing(5)
+
         try:
             self.config_ui_widget = ConfigUI(parent=config_tab)
             if self.config_ui_widget is None:
                 raise Exception("ConfigUI Instance is None")
+
             self.config_ui_widget.close_requested.connect(self.cleanup_config_ui)
-            self.config_ui_widget.close_requested.connect(self.return_to_db_tab)  
+            self.config_ui_widget.close_requested.connect(self.return_to_db_tab)
             self.config_ui_widget.config_updated.connect(self.on_config_updated)
             config_layout.addWidget(self.config_ui_widget)
             config_layout.addStretch()
@@ -858,121 +886,239 @@ class DesktopApp(QMainWindow):
             error_label.setStyleSheet("color: red; font-size: 12px; font-weight: bold;")
             config_layout.addWidget(error_label)
             config_layout.addStretch()
-
-# VPN CONNECTION
-        vpn_tab = QWidget()
-        self.init_vpn_tab(vpn_tab)
-        self.vpn_tab_index = self.tab_widget.addTab(vpn_tab, "    VPN CONNECTION    ")
-        vpn_tab.setEnabled(True)
-        vpn_tab.setVisible(True)
-
 # LOG
         log_tab = QWidget()
         log_tab_index = self.tab_widget.addTab(log_tab, " LOG ")
         log_tab.setEnabled(True)
         log_tab.setVisible(True)
+
         log_layout = QVBoxLayout(log_tab)
         log_layout.setContentsMargins(10, 10, 10, 10)
         log_layout.setSpacing(5)
+
         top_layout = QHBoxLayout()
-        archive_button = QPushButton("📤 ARCHIVE")
-        archive_button.setFixedSize(120, 30)
-        archive_button.setStyleSheet(Styles.BUTTON_STYLE)
-        archive_button.clicked.connect(self.on_archive_clicked)
-        top_layout.addWidget(archive_button)
+
+        self.archive_button = QPushButton(" ARCHIVE")
+        icon_file = icon_path("download.png")
+        self.archive_button.setIcon(QIcon(icon_file))
+        self.archive_button.setIconSize(QSize(24, 24))
+        self.archive_button.setFixedSize(120, 30)
+        self.archive_button.setStyleSheet(Styles.BUTTON_STYLE)
+        self.archive_button.clicked.connect(self.on_archive_clicked)
+        top_layout.addWidget(self.archive_button)
         top_layout.addStretch()
-        refresh_button = QPushButton("♻ REFRESH")
-        refresh_button.setFixedSize(120, 30)
-        refresh_button.setStyleSheet(Styles.BUTTON_STYLE)
-        top_layout.addStretch()
-        top_layout.addWidget(refresh_button)
+# REFRESH
+        self.refresh_button = QPushButton(" REFRESH")
+        icon_file = icon_path("refresh.png")
+        self.refresh_button.setIcon(QIcon(icon_file))
+        self.refresh_button.setIconSize(QSize(24, 24))
+        self.refresh_button.setFixedSize(120, 30)
+        self.refresh_button.setStyleSheet(Styles.BUTTON_STYLE)
+        top_layout.addWidget(self.refresh_button)
+
         self.log_viewer = QTextEdit()
         self.log_viewer.setReadOnly(True)
         self.log_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
         self.log_viewer.setFont(QFont("Consolas", 11))
         self.log_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
         log_layout.addLayout(top_layout)
         log_layout.addWidget(self.log_viewer)
+
         def refresh_log():
             try:
                 log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
                 if not os.path.exists(log_dir):
                     self.log_viewer.setPlainText("Log Directory Not Found")
                     return
+
                 log_files = glob.glob(os.path.join(log_dir, "CRD*.log"))
                 if not log_files:
+                    self.log_viewer.setPlainText("No log files found")
                     return
-                
+
                 latest_log = max(log_files, key=os.path.getmtime)
                 with open(latest_log, 'r', encoding='utf-8', errors='replace') as f:
                     log_content = f.read()
+
                 self.log_viewer.setPlainText(log_content)
                 cursor = self.log_viewer.textCursor()
                 cursor.movePosition(cursor.End)
                 self.log_viewer.setTextCursor(cursor)
-                scrollbar = self.log_viewer.verticalScrollBar()
-                scrollbar.setValue(scrollbar.maximum())
                 self.log_viewer.ensureCursorVisible()
             except Exception as e:
-                pass
-        refresh_button.clicked.connect(refresh_log)
+                self.log_viewer.setPlainText(f"Error loading log: {e}")
+
+        self.refresh_button.clicked.connect(refresh_log)
         self.refresh_log_func = refresh_log
         refresh_log()
-        
-# HELP
+# HELP/VER
         help_tab = QWidget()
-        help_tab_index = self.tab_widget.addTab(help_tab, " HELP ")
+        help_tab_index = self.tab_widget.addTab(help_tab, " VER ")
         help_tab.setEnabled(True)
         help_tab.setVisible(True)
         help_layout = QVBoxLayout(help_tab)
         help_layout.setContentsMargins(0, 0, 0, 0)
         help_layout.setSpacing(0)
-        self.help_sub_tabs = QTabWidget()
-        sub_tab_names = [" USAGE ", " ABOUT "]
-        for name in sub_tab_names:
+
+        about_viewer = QTextEdit()
+        about_viewer.setReadOnly(True)
+        about_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
+        about_viewer.setFont(QFont("Consolas", 12))
+        about_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+        VersionManager.load_versions(about_viewer)
+        about_viewer.verticalScrollBar().setValue(0)
+        cursor = about_viewer.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        about_viewer.setTextCursor(cursor)
+
+        about_layout = QVBoxLayout()
+        about_layout.setContentsMargins(8, 8, 8, 8)
+        about_layout.setSpacing(10)
+        about_viewer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        about_layout.addWidget(about_viewer)
+
+        self.update_btn = QPushButton("CHECK FOR UPDATES")
+        self.update_btn.setFixedWidth(200)
+        self.update_btn.setFixedHeight(30)
+        self.update_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self.update_btn.setStyleSheet(Styles.BUTTON_STYLE)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.update_btn)
+        button_layout.addStretch()
+        about_layout.addLayout(button_layout)
+        about_layout.addSpacing(5)
+
+        help_layout.addLayout(about_layout)
+        self.update_btn.clicked.connect(lambda: crd_update.check_for_remote_updates(self))
+
+# VPN/URL
+        browser_tab = QWidget()
+        self.browser_tab_index = self.tab_widget.addTab(browser_tab, " VPN/URL ")
+        browser_tab.setEnabled(True)
+        browser_tab.setVisible(True)
+        browser_layout = QVBoxLayout(browser_tab)
+        browser_layout.setContentsMargins(0, 0, 0, 0)
+        browser_layout.setSpacing(0)
+
+        self.browser_sub_tabs = QTabWidget()
+        self.browser_sub_tabs.setStyleSheet("QTabWidget::pane { border: 0; }")
+
+        for sub_name in [" VPN ", " LOCAL "]:
             sub_tab = QWidget()
             sub_tab.setStyleSheet("background-color: #202020;")
-            sub_tab_layout = QVBoxLayout(sub_tab)
-            sub_tab_layout.setContentsMargins(10, 10, 10, 10)
-            sub_tab_layout.setSpacing(5)
-            if name == " USAGE ":
-                help_view = QWebEngineView()
-                help_view.setFixedHeight(720)
-                help_view.setStyleSheet(Styles.WEB_VIEW_WIDGET)
-                crd_dir = os.path.dirname(os.path.abspath(__file__))
-                help_file_path = os.path.normpath(os.path.join(crd_dir, "../html/help.html"))
-                local_url = QUrl.fromLocalFile(help_file_path)
-                help_view.setUrl(local_url)
-                sub_tab_layout.addWidget(help_view)
-# CHANGED 7/13/26 (EW)
-            elif name == " ABOUT ":
-                about_viewer = QTextEdit()
-                about_viewer.setReadOnly(True)
-                about_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
-                about_viewer.setFont(QFont("Consolas", 12))
-                about_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-                sub_tab_layout.addWidget(about_viewer)
-                VersionManager.load_versions(about_viewer)
-                about_viewer.verticalScrollBar().setValue(0)
-                cursor = about_viewer.textCursor()
-                cursor.movePosition(QTextCursor.Start)
-                about_viewer.setTextCursor(cursor)
-                QTimer.singleShot(0, lambda: (
-                    about_viewer.verticalScrollBar().setValue(0),
-                    about_viewer.moveCursor(QTextCursor.Start)
-                ))
-                
-            self.help_sub_tabs.addTab(sub_tab, name)
-        help_layout.addWidget(self.help_sub_tabs)
-        self.help_sub_tabs.setCurrentIndex(1)  
+            sub_layout = QVBoxLayout(sub_tab)
+            sub_layout.setContentsMargins(0, 0, 0, 0)
+            sub_layout.setSpacing(0)
 
+            if sub_name.strip() == "VPN":
+                self.vpn_webview = QWebEngineView()
+                self.vpn_webview.setStyleSheet(Styles.WEB_VIEW_WIDGET)
+                sub_layout.addWidget(self.vpn_webview)
+                sub_tab.browser_view = self.vpn_webview
+
+                custom_page = CustomWebEnginePage(self.vpn_webview)
+                self.vpn_webview.setPage(custom_page)
+                self.vpn_webview.loadFinished.connect(self.on_vpn_page_loaded)
+                self.vpn_webview.urlChanged.connect(self.on_vpn_url_changed)
+                self.vpn_webview.loadStarted.connect(lambda: logger.info("[CRD UI] VPN Page load started"))
+                self.vpn_webview.loadProgress.connect(lambda p: logger.debug(f"[CRD UI] VPN Page load progress: {p}%"))
+            else:
+                header_widget = QWidget()
+                header_widget.setFixedHeight(50)
+                header_widget.setStyleSheet("background-color: #202020; border-bottom: 1px solid #444444;")
+
+                header_layout = QHBoxLayout(header_widget)
+                header_layout.setContentsMargins(8, 6, 8, 6)
+                header_layout.setSpacing(8)
+
+                self.btn_back = QPushButton()
+                self.btn_back.setFixedSize(36, 36)
+                self.btn_back.setIcon(QIcon(icon_path("back.png")))
+                self.btn_back.setIconSize(QSize(24, 24))
+                self.btn_back.setToolTip("Back")
+                self.btn_back.setStyleSheet(Styles.BUTTON_STYLE)
+                self.btn_back.clicked.connect(lambda: self.local_browser.back() if hasattr(self, 'local_browser') else None)
+
+                self.btn_forward = QPushButton()
+                self.btn_forward.setFixedSize(36, 36)
+                self.btn_forward.setIcon(QIcon(icon_path("forward.png")))
+                self.btn_forward.setIconSize(QSize(24, 24))
+                self.btn_forward.setToolTip("Forward")
+                self.btn_forward.setStyleSheet(Styles.BUTTON_STYLE)
+                self.btn_forward.clicked.connect(lambda: self.local_browser.forward() if hasattr(self, 'local_browser') else None)
+
+                self.btn_home = QPushButton()
+                self.btn_home.setFixedSize(36, 36)
+                self.btn_home.setIcon(QIcon(icon_path("home.png")))
+                self.btn_home.setIconSize(QSize(24, 24))
+                self.btn_home.setToolTip("Home")
+                self.btn_home.setStyleSheet(Styles.BUTTON_STYLE)
+                self.btn_home.clicked.connect(self.browser_go_home)
+
+                self.btn_refresh = QPushButton()
+                self.btn_refresh.setFixedSize(36, 36)
+                self.btn_refresh.setIcon(QIcon(icon_path("refresh.png")))
+                self.btn_refresh.setIconSize(QSize(24, 24))
+                self.btn_refresh.setToolTip("Refresh")
+                self.btn_refresh.setStyleSheet(Styles.BUTTON_STYLE)
+                self.btn_refresh.clicked.connect(lambda: self.local_browser.reload() if hasattr(self, 'local_browser') else None)
+
+                header_layout.addWidget(self.btn_back)
+                header_layout.addWidget(self.btn_forward)
+                header_layout.addWidget(self.btn_home)
+                header_layout.addWidget(self.btn_refresh)
+
+                self.address_bar = QLineEdit()
+                self.address_bar.setStyleSheet(Styles.LINE_EDIT_STYLE if hasattr(Styles, "LINE_EDIT_STYLE") else "")
+                self.address_bar.returnPressed.connect(self.browser_navigate)
+                header_layout.addWidget(self.address_bar, stretch=1)
+
+                self.links_combo = QComboBox()
+                self.links_combo.setFixedWidth(220)
+                self.links_combo.setStyleSheet(Styles.COMBO_BOX)
+                self.links_combo.currentIndexChanged.connect(self.on_links_combo_changed)
+                header_layout.addWidget(self.links_combo)
+
+                sub_layout.addWidget(header_widget)
+
+                self.local_browser = QWebEngineView()
+                self.local_browser.setStyleSheet(Styles.WEB_VIEW_WIDGET)
+                sub_layout.addWidget(self.local_browser)
+                sub_tab.browser_view = self.local_browser
+
+                settings = self.local_browser.settings()
+                settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+                settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+                settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+
+            self.browser_sub_tabs.addTab(sub_tab, sub_name)
+
+        browser_layout.addWidget(self.browser_sub_tabs)
+        self.browser_sub_tabs.setCurrentIndex(0)
+
+        self.reload_vpn_credentials()
+        if hasattr(self, 'vpn_webview'):
+            def load_vpn():
+                logger.info("[CRD UI] Loading VPN login page")
+                self.vpn_webview.setUrl(QUrl("https://172.17.1.3/"))  
+            QTimer.singleShot(800, load_vpn)
+
+        if hasattr(self, 'local_browser'):
+            self.local_browser.setUrl(QUrl.fromLocalFile(
+                os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "html", "mr.html"))         ))
+        self.load_html_links()
+        self.browser_go_home()
         self.tab_widget.setTabEnabled(self.local_tab_index, True)
-        self.tab_widget.setTabEnabled(self.vpn_tab_index, True)
         self.tab_widget.setTabEnabled(config_tab_index, True)
         self.tab_widget.setTabEnabled(log_tab_index, True)
         self.tab_widget.setTabEnabled(help_tab_index, True)
+        self.tab_widget.setTabEnabled(self.browser_tab_index, True)
         self.tab_widget.currentChanged.connect(self.on_main_tab_changed)
-        
+# ------------------------------------------------------------------------          
     def on_main_tab_changed(self, index):
         pass  
 # ------------------------------------------------------------------------         
@@ -999,10 +1145,9 @@ class DesktopApp(QMainWindow):
                 msg_box.center()
                 msg_box.exec_custom()
 # ------------------------------------------------------------------------        
-# ARCHIVE LOG      
     def on_archive_clicked(self):
         self.archive_log()
-        
+# ------------------------------------------------------------------------        
     def archive_log(self):
         log_dir = r"C:\CRD\logs"
         archive_dir = os.path.join(log_dir, "archive")
@@ -1090,6 +1235,39 @@ class DesktopApp(QMainWindow):
         self.vpn_webview.page().setDevToolsPage(self.vpn_webview.page())
         self.vpn_webview.loadStarted.connect(lambda: logger.info("[CRD UI] VPN Page load started"))
         self.vpn_webview.loadProgress.connect(lambda p: logger.debug(f"[CRD UI] VPN Page load progress: {p}%"))
+
+
+
+
+    def reload_vpn_credentials(self):
+        """Load encrypted VPN credentials"""
+        try:
+            cred_path = os.path.normpath(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "..", "config", "vpn.creds"
+            ))
+            
+            if not os.path.exists(cred_path):
+                logger.warning("[CRD UI] vpn.creds file not found")
+                self.auto_login_enabled = False
+                return False
+
+            with open(cred_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            self.vpn_username = data.get("username")
+            self.vpn_password = data.get("password")
+            self.vpn_key = data.get("key", "")
+            self.auto_login_enabled = True
+            
+            logger.info(f"[CRD UI] VPN credentials loaded (username: {self.vpn_username})")
+            return True
+        except Exception as e:
+            logger.error(f"[CRD UI] Failed to load VPN credentials: {e}")
+            self.auto_login_enabled = False
+            return False
+
+
+
 # ------------------------------------------------------------------------
     def cleanup_config_ui(self):
         if hasattr(self, 'config_ui_widget') and self.config_ui_widget:
@@ -1135,10 +1313,10 @@ class DesktopApp(QMainWindow):
                     widget.deleteLater()
             layout.addWidget(self.sid_manager_window)
         except Exception as e:
-            logger.error(f"[CRD UI] Failed to access SID Database: {str(e)}")
+            logger.error(f"[CRD UI] Failed to Access SID Database: {str(e)}")
             msg_box = CustomMessageBox(
                 title="Error",
-                message=f"Failed to access SID Database: {str(e)}",
+                message=f"Failed to Access SID Database: {str(e)}",
                 icon=QMessageBox.Critical,
                 parent=self
             )
@@ -1166,6 +1344,26 @@ class DesktopApp(QMainWindow):
             self.query_ip_addresses() 
         except Exception as e:
             pass
+# ------------------------------------------------------------------------
+    def test_is_tunnel_open(self, ip, port):
+        try:
+            port = self.edit_boxes.get("port", QLineEdit()).text().strip() or port
+        except (AttributeError, KeyError):
+            port = port
+        logger.info(f"[CRD UI] Testing Tunnel: {ip}:{port}")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            result = sock.connect_ex((ip, int(port)))
+            sock.close()
+            return result == 0
+        except Exception as e:
+            logger.error(f"[CRD UI] Tunnel Test Failed: {e}")
+            return False
+# ------------------------------------------------------------------------
+    def end_connection(self):
+        logger.info("[CRD UI] Ending VPN Connection")
+# ------------------------------------------------------------------------
 # VPN DISCONNECT
 # ------------------------------------------------------------------------
     def load_config(self):
@@ -1215,17 +1413,17 @@ class DesktopApp(QMainWindow):
 # ------------------------------------------------------------------------        
     def refresh_vpn_page(self):
         if self.connect_led.color == QColor("gray"):
-            logger.info("[CRD UI] Refreshing VPN page due to disconnected status")
+            logger.info("[CRD UI] Refreshing VPN Page Due to Disconnected Status")
             if hasattr(self, 'vpn_webview') and isinstance(self.vpn_webview, QWebEngineView):
                 self.vpn_webview.reload() 
             else:
-                logger.warning("[CRD UI] No VPN webview found to refresh")
+                logger.warning("[CRD UI] No VPN Webview Found to Refresh")
                 self.tunnel_monitor.stop()  
                 self.tunnel_monitor = TunnelMonitorWorker(sp_ip="172.17.1.3")  
                 self.tunnel_monitor.status_signal.connect(self.update_vpn_status)
                 self.tunnel_monitor.start_monitoring() 
         else:
-            logger.info("[CRD UI] VPN is connected")
+            logger.info("[CRD UI] VPN is Connected")
 # ------------------------------------------------------------------------
     def get_html_url(self, html_file):
         html_path = os.path.join(os.path.dirname(__file__), '..', 'html', html_file)
@@ -1235,19 +1433,61 @@ class DesktopApp(QMainWindow):
         logger.error(f"[CRD UI] HTML File Not Found: {html_path}")
         return None
 # ------------------------------------------------------------------------
-    def load_html(self, app_name, app_path, execution=0, popup=0, modality=None):
-        base_name = os.path.splitext(os.path.basename(app_path))[0]
-        instruction_file = f"{base_name}.html"
-        instruction_url = self.get_html_url(instruction_file)
-        if not instruction_url:
-            instruction_url = self.get_html_url('index.html')
-        if instruction_url:
-            self.tab_widget.setCurrentIndex(0)
-            web_view = self.tab_widget.widget(0).findChild(QWebEngineView)
-            if web_view:
-                web_view.setUrl(instruction_url)
-        if execution == 1:
-            run_button = self.create_button(f"Run {app_name}", lambda: self.execute_app(app_path))
+    def load_html_links(self):
+        """Load links from ../config/html.json into the LOCAL dropdown"""
+        if not hasattr(self, 'links_combo'):
+            logger.warning("[CRD UI] links_combo not initialized")
+            return
+
+        self.links_combo.clear()
+
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            project_root = os.path.abspath(os.path.join(base_dir, ".."))
+            json_path = os.path.join(project_root, "config", "html.json")
+
+            logger.info(f"[CRD UI] Loading links from: {json_path}")
+
+            if not os.path.exists(json_path):
+                logger.warning(f"[CRD UI] html.json not found")
+                self.links_combo.addItem("html.json not found", None)
+                return
+
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            links = data.get("links", []) if isinstance(data, dict) else data
+
+            count = 0
+            for item in links:
+                if isinstance(item, dict):
+                    name = item.get("name") or item.get("text")
+                    url_str = item.get("url")
+                    if name and url_str:
+                        if url_str.startswith(("..", "html/", "reports/")) or not url_str.startswith("http"):
+                            abs_path = os.path.abspath(os.path.join(project_root, url_str.lstrip("./\\")))
+                            url = QUrl.fromLocalFile(abs_path)
+                        else:
+                            url = QUrl(url_str)
+                        self.links_combo.addItem(name, url)
+                        count += 1
+                        logger.info(f"[CRD UI] Added: {name}")
+
+            logger.info(f"[CRD UI] Successfully loaded {count} links")
+
+            if count > 0:
+                self.links_combo.setCurrentIndex(0)
+
+        except Exception as e:
+            logger.error(f"[CRD UI] Failed to load html.json: {e}")
+            self.links_combo.addItem("Error loading links", None)
+# ------------------------------------------------------------------------
+    def browser_go_home(self):
+        if hasattr(self, 'local_browser'):
+            home_url = QUrl("file:///C:/CRD/html/mr.html")          
+            self.local_browser.setUrl(home_url)
+            if hasattr(self, 'address_bar'):
+                self.address_bar.setText(home_url.toString())
 # ------------------------------------------------------------------------
 # APP EXE
     def check_modality(self):
@@ -1261,14 +1501,11 @@ class DesktopApp(QMainWindow):
             return
         if modality == "MR":
             html_file = "mr.html"
-        else:
-            html_file = "index.html"
         html_url = self.get_html_url(html_file)
         if not html_url:
             html_url = self.get_html_url("index.html")
         if html_url and self.web_view.url().toString() != html_url.toString():
             self.web_view.setUrl(html_url)
-
 # ------------------------------------------------------------------------
 # JS_EDIT 25.12.24, NO LONGER USING THIS POLLING. DOING THIS INSTEAD self.modality_edit_box.textChanged.connect(self.check_modality)
     def start_modality_polling(self):
@@ -1280,6 +1517,16 @@ class DesktopApp(QMainWindow):
     def handle_certificate_error(self, error):
         error.acceptCertificate()
         return True
+# ------------------------------------------------------------------------    
+    def on_links_combo_changed(self, index):
+        if index < 0 or not hasattr(self, 'local_browser'):
+            return
+
+        url = self.links_combo.itemData(index)
+        if isinstance(url, QUrl) and url.isValid():
+            self.local_browser.setUrl(url)
+            if hasattr(self, 'address_bar'):
+                self.address_bar.setText(url.toString())
 # ------------------------------------------------------------------------
     def write_connect_dat(self, creds_dict):
         try:
@@ -1367,9 +1614,9 @@ class DesktopApp(QMainWindow):
                 hosp_name = hosp_name[len("PreInstall:"):].strip()
             self.dynamic_header.setText(hosp_name if hosp_name else "")
 
-    # WRITE TO current.dat
-    # JS_EDIT 25.12.24. CHANGED Modality={data.get("modality", "")} to Modality={data.get("Modality", "")}
-    # because it wasn't pulling the modality. 
+# WRITE TO current.dat
+# JS_EDIT 25.12.24. CHANGED Modality={data.get("modality", "")} to Modality={data.get("Modality", "")}
+# because it wasn't pulling the modality. 
             config_content = f"""SID={sid}
 SiteName={hosp_name}
 SP_IP={data.get("sp_ip", "")}
@@ -1497,8 +1744,12 @@ OnActive=1
 # ------------------------------------------------------------------------
     def update_vpn_status(self, is_connected):
         self.vpn_connected = bool(is_connected)
-        self.connect_led.set_status(is_on=self.vpn_connected)
-        self.update_button_states()
+        
+        if hasattr(self, 'connect_led'):
+            self.connect_led.set_status(is_on=self.vpn_connected)
+        
+        if hasattr(self, 'update_button_states'):
+            self.update_button_states()
 # ------------------------------------------------------------------------
     def on_vpn_url_changed(self, url):
         current_url = url.toString()
@@ -1510,11 +1761,11 @@ OnActive=1
 # ------------------------------------------------------------------------
     def is_vpn_connected(self):
         return self.vpn_connected
-
+# ------------------------------------------------------------------------
     def reload_vpn_page(self):
         self.vpn_webview.setUrl(QUrl("https://172.17.1.3/"))
         logger.info("[CRD UI] VPN Page Reloaded")
-
+# ------------------------------------------------------------------------
     def systemclose_button_click(self):
         logger.info("[CRD UI] System Close Button (placeholder)")
 # ------------------------------------------------------------------------        
@@ -1524,8 +1775,8 @@ def main():
     app.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
     desktop_app = DesktopApp()
     screen_geometry = app.primaryScreen().geometry()
-    x = 10 #(screen_geometry.width() - desktop_app.width()) // 2
-    y = 10 #(screen_geometry.height() - desktop_app.height()) // 2
+    x = 10 
+    y = 10 
     desktop_app.move(x, y)
     desktop_app.show()
     sys.exit(app.exec_())
@@ -1533,3 +1784,5 @@ def main():
 if __name__ == '__main__':
     main()
 # ------------------------------------------------------------------------
+#(screen_geometry.width() - desktop_app.width()) // 2
+#(screen_geometry.height() - desktop_app.height()) // 2
