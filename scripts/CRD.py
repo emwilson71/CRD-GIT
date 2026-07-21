@@ -2,11 +2,11 @@
 """
 CanonRemoteDiagnostics.py
 Main UI and Structure
-Version 1.05 Updated 07/10/26    
+Version 1.06 Updated 07/10/26    
 JSmyser CHECK FOR JS_EDIT 25.12.24 TO SEE WHAT I CHANGED.
 ALSO GOT RID OF SOME DUPLICATE METHODS. 2025.12.24'
 """
-VERSION = "CRD - Canon Remote Diagnostics v1.05"
+VERSION = "CRD - Canon Remote Diagnostics v1.06"
 # ------------------------------------------------------------------------
 # LIBRARIES
 import sys, os, configparser, logging, platform, webbrowser, subprocess, warnings
@@ -36,7 +36,7 @@ from crd_led_monitor import (ConnectivityIndicator, ConnectionMonitorThread,
 from crd_encryptor import load_key, decrypt_json, update_config
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 icon_path = lambda name: os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../html/image/", name))
+    os.path.dirname(os.path.abspath(__file__)), "../html/icons/", name))
 # ------------------------------------------------------------------------
 crd_logger = CRDLogger("CRD")
 logger = crd_logger.get_logger()
@@ -161,7 +161,23 @@ class EditorDialog(QDialog):
                 f.write(self.text_edit.toPlainText())
             QMessageBox.information(self, "Saved", f"{filename} Saved Successfully")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could Not Save {filename}:\n{e}")
+            QMessageBox.critical(self, "Error", f"Could Not Save {filename}:\n{e}")          
+# ------------------------------------------------------------------------
+class CustomWebEnginePage(QWebEnginePage):
+    def javaScriptConsoleMessage(self, level, message, line_number, source_id):
+        logger.warning(
+            "JS console [%s] %s:%s — %s",
+            level, source_id, line_number, message
+        )
+
+    def certificateError(self, error):
+        logger.error(
+            "Certificate error: %s | URL: %s",
+            error.errorDescription(),
+            error.url().toString()
+        )
+        #error.ignoreCertificateError()
+        return False
 # ------------------------------------------------------------------------
 class DesktopApp(QMainWindow):
     def __init__(self):
@@ -422,12 +438,11 @@ class DesktopApp(QMainWindow):
 # ------------------------------------------------------------------------        
     def update_apptree(self):
         modality = self.edit_boxes.get("Modality", QLineEdit()).text().strip().upper()
-        logger.debug(f"[CRD UI] Updating AppTree with modality: {modality}")
+        logger.info(f"[CRD UI] Updating AppTree with modality: {modality}")
         self.app_tree.load_apptree_data(modality)
 # ------------------------------------------------------------------------  
     def check_for_updates(self):
         try:
-            import crd_update
             crd_update.check_for_updates(self)  
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Update Error:\n{str(e)}")
@@ -443,17 +458,19 @@ class DesktopApp(QMainWindow):
         try:
             crd_dir = os.path.dirname(os.path.abspath(__file__))
             mr_path = os.path.normpath(os.path.join(crd_dir, "../html/mr.html"))
-            
+
             if os.path.exists(mr_path):
                 url = QUrl.fromLocalFile(mr_path)
             else:
                 url = QUrl("about:blank")
                 logger.warning("mr.html not found")
-            self.browser_view.setUrl(url)
+
+            self.local_browser.setUrl(url)
             self.address_bar.setText(url.toString())
+
         except Exception as e:
-            logger.error(f"Failed to Load Home: {e}")
-            self.browser_view.setHtml("<h2>Error loading mr.html</h2>")
+            logger.error(f"Failed to load home: {e}")
+            self.local_browser.setHtml("<h2>Error loading mr.html</h2>")
 # ------------------------------------------------------------------------  
     def browser_navigate(self):
         if hasattr(self, 'local_browser') and hasattr(self, 'address_bar'):
@@ -570,7 +587,12 @@ class DesktopApp(QMainWindow):
 # ------------------------------------------------------------------------
     def on_button_click(self, feature, button_text):
         if feature == "MISC:" and button_text == "DOWNLOADS":
-            path = r"C:\CRD\downloads"
+            if getattr(sys, 'frozen', False):
+                base_dir = os.path.dirname(sys.executable)
+            else:
+                innovate_dir = os.path.dirname(os.path.abspath(__file__))
+
+            path = os.path.join(base_dir, "downloads") 
             os.startfile(path)
         else:
             if feature == "SP:":
@@ -886,114 +908,6 @@ class DesktopApp(QMainWindow):
             error_label.setStyleSheet("color: red; font-size: 12px; font-weight: bold;")
             config_layout.addWidget(error_label)
             config_layout.addStretch()
-# LOG
-        log_tab = QWidget()
-        log_tab_index = self.tab_widget.addTab(log_tab, " LOG ")
-        log_tab.setEnabled(True)
-        log_tab.setVisible(True)
-
-        log_layout = QVBoxLayout(log_tab)
-        log_layout.setContentsMargins(10, 10, 10, 10)
-        log_layout.setSpacing(5)
-
-        top_layout = QHBoxLayout()
-
-        self.archive_button = QPushButton(" ARCHIVE")
-        icon_file = icon_path("download.png")
-        self.archive_button.setIcon(QIcon(icon_file))
-        self.archive_button.setIconSize(QSize(24, 24))
-        self.archive_button.setFixedSize(120, 30)
-        self.archive_button.setStyleSheet(Styles.BUTTON_STYLE)
-        self.archive_button.clicked.connect(self.on_archive_clicked)
-        top_layout.addWidget(self.archive_button)
-        top_layout.addStretch()
-# REFRESH
-        self.refresh_button = QPushButton(" REFRESH")
-        icon_file = icon_path("refresh.png")
-        self.refresh_button.setIcon(QIcon(icon_file))
-        self.refresh_button.setIconSize(QSize(24, 24))
-        self.refresh_button.setFixedSize(120, 30)
-        self.refresh_button.setStyleSheet(Styles.BUTTON_STYLE)
-        top_layout.addWidget(self.refresh_button)
-
-        self.log_viewer = QTextEdit()
-        self.log_viewer.setReadOnly(True)
-        self.log_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
-        self.log_viewer.setFont(QFont("Consolas", 11))
-        self.log_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-
-        log_layout.addLayout(top_layout)
-        log_layout.addWidget(self.log_viewer)
-
-        def refresh_log():
-            try:
-                log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
-                if not os.path.exists(log_dir):
-                    self.log_viewer.setPlainText("Log Directory Not Found")
-                    return
-
-                log_files = glob.glob(os.path.join(log_dir, "CRD*.log"))
-                if not log_files:
-                    self.log_viewer.setPlainText("No log files found")
-                    return
-
-                latest_log = max(log_files, key=os.path.getmtime)
-                with open(latest_log, 'r', encoding='utf-8', errors='replace') as f:
-                    log_content = f.read()
-
-                self.log_viewer.setPlainText(log_content)
-                cursor = self.log_viewer.textCursor()
-                cursor.movePosition(cursor.End)
-                self.log_viewer.setTextCursor(cursor)
-                self.log_viewer.ensureCursorVisible()
-            except Exception as e:
-                self.log_viewer.setPlainText(f"Error loading log: {e}")
-
-        self.refresh_button.clicked.connect(refresh_log)
-        self.refresh_log_func = refresh_log
-        refresh_log()
-# HELP/VER
-        help_tab = QWidget()
-        help_tab_index = self.tab_widget.addTab(help_tab, " VER ")
-        help_tab.setEnabled(True)
-        help_tab.setVisible(True)
-        help_layout = QVBoxLayout(help_tab)
-        help_layout.setContentsMargins(0, 0, 0, 0)
-        help_layout.setSpacing(0)
-
-        about_viewer = QTextEdit()
-        about_viewer.setReadOnly(True)
-        about_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
-        about_viewer.setFont(QFont("Consolas", 12))
-        about_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-
-        VersionManager.load_versions(about_viewer)
-        about_viewer.verticalScrollBar().setValue(0)
-        cursor = about_viewer.textCursor()
-        cursor.movePosition(QTextCursor.Start)
-        about_viewer.setTextCursor(cursor)
-
-        about_layout = QVBoxLayout()
-        about_layout.setContentsMargins(8, 8, 8, 8)
-        about_layout.setSpacing(10)
-        about_viewer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        about_layout.addWidget(about_viewer)
-
-        self.update_btn = QPushButton("CHECK FOR UPDATES")
-        self.update_btn.setFixedWidth(200)
-        self.update_btn.setFixedHeight(30)
-        self.update_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
-        self.update_btn.setStyleSheet(Styles.BUTTON_STYLE)
-
-        button_layout = QHBoxLayout()
-        button_layout.addStretch()
-        button_layout.addWidget(self.update_btn)
-        button_layout.addStretch()
-        about_layout.addLayout(button_layout)
-        about_layout.addSpacing(5)
-
-        help_layout.addLayout(about_layout)
-        self.update_btn.clicked.connect(lambda: crd_update.check_for_remote_updates(self))
 
 # VPN/URL
         browser_tab = QWidget()
@@ -1112,6 +1026,118 @@ class DesktopApp(QMainWindow):
                 os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "html", "mr.html"))         ))
         self.load_html_links()
         self.browser_go_home()
+# LOG
+        log_tab = QWidget()
+        log_tab_index = self.tab_widget.addTab(log_tab, " LOG ")
+        log_tab.setEnabled(True)
+        log_tab.setVisible(True)
+
+        log_layout = QVBoxLayout(log_tab)
+        log_layout.setContentsMargins(10, 10, 10, 10)
+        log_layout.setSpacing(5)
+
+        top_layout = QHBoxLayout()
+
+        self.archive_button = QPushButton(" ARCHIVE")
+        icon_file = icon_path("download.png")
+        self.archive_button.setIcon(QIcon(icon_file))
+        self.archive_button.setIconSize(QSize(24, 24))
+        self.archive_button.setFixedSize(120, 30)
+        self.archive_button.setStyleSheet(Styles.BUTTON_STYLE)
+        self.archive_button.clicked.connect(self.on_archive_clicked)
+        top_layout.addWidget(self.archive_button)
+        top_layout.addStretch()
+# REFRESH
+        self.refresh_button = QPushButton(" REFRESH")
+        icon_file = icon_path("refresh.png")
+        self.refresh_button.setIcon(QIcon(icon_file))
+        self.refresh_button.setIconSize(QSize(24, 24))
+        self.refresh_button.setFixedSize(120, 30)
+        self.refresh_button.setStyleSheet(Styles.BUTTON_STYLE)
+        top_layout.addWidget(self.refresh_button)
+
+        self.log_viewer = QTextEdit()
+        self.log_viewer.setReadOnly(True)
+        self.log_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
+        self.log_viewer.setFont(QFont("Consolas", 11))
+        self.log_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+        log_layout.addLayout(top_layout)
+        log_layout.addWidget(self.log_viewer)
+
+        def refresh_log():
+            try:
+                log_dir = os.path.join(os.path.dirname(__file__), "..", "logs")
+                if not os.path.exists(log_dir):
+                    self.log_viewer.setPlainText("Log Directory Not Found")
+                    return
+
+                log_files = glob.glob(os.path.join(log_dir, "CRD*.log"))
+                if not log_files:
+                    self.log_viewer.setPlainText("No log files found")
+                    return
+
+                latest_log = max(log_files, key=os.path.getmtime)
+                with open(latest_log, 'r', encoding='utf-8', errors='replace') as f:
+                    log_content = f.read()
+
+                self.log_viewer.setPlainText(log_content)
+                cursor = self.log_viewer.textCursor()
+                cursor.movePosition(cursor.End)
+                self.log_viewer.setTextCursor(cursor)
+                self.log_viewer.ensureCursorVisible()
+            except Exception as e:
+                self.log_viewer.setPlainText(f"Error loading log: {e}")
+
+        self.refresh_button.clicked.connect(refresh_log)
+        self.refresh_log_func = refresh_log
+        refresh_log()
+# HELP/VER
+        help_tab = QWidget()
+        help_tab_index = self.tab_widget.addTab(help_tab, " VERSION ")
+        help_tab.setEnabled(True)
+        help_tab.setVisible(True)
+        help_layout = QVBoxLayout(help_tab)
+        help_layout.setContentsMargins(0, 0, 0, 0)
+        help_layout.setSpacing(0)
+
+        about_viewer = QTextEdit()
+        about_viewer.setReadOnly(True)
+        about_viewer.setStyleSheet(Styles.TEXT_EDIT_STYLE)
+        about_viewer.setFont(QFont("Consolas", 12))
+        about_viewer.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+
+        VersionManager.load_versions(about_viewer)
+        about_viewer.verticalScrollBar().setValue(0)
+        cursor = about_viewer.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        about_viewer.setTextCursor(cursor)
+
+        about_layout = QVBoxLayout()
+        about_layout.setContentsMargins(8, 8, 8, 8)
+        about_layout.setSpacing(10)
+        about_viewer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        about_layout.addWidget(about_viewer)
+
+        self.update_btn = QPushButton("CHECK FOR UPDATES")
+        icon_file = icon_path("check.png")
+        self.update_btn.setIcon(QIcon(icon_file))
+        self.update_btn.setIconSize(QSize(24, 24))
+        self.update_btn.setFixedWidth(200)
+        self.update_btn.setFixedHeight(30)
+        self.update_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
+        self.update_btn.setStyleSheet(Styles.BUTTON_STYLE)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(self.update_btn)
+        button_layout.addStretch()
+        about_layout.addLayout(button_layout)
+        about_layout.addSpacing(5)
+
+        help_layout.addLayout(about_layout)
+        self.update_btn.clicked.connect(lambda: crd_update.check_for_remote_updates(self))
+
         self.tab_widget.setTabEnabled(self.local_tab_index, True)
         self.tab_widget.setTabEnabled(config_tab_index, True)
         self.tab_widget.setTabEnabled(log_tab_index, True)
@@ -1149,7 +1175,8 @@ class DesktopApp(QMainWindow):
         self.archive_log()
 # ------------------------------------------------------------------------        
     def archive_log(self):
-        log_dir = r"C:\CRD\logs"
+        base = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__)
+        log_dir = os.path.join(base, "logs")
         archive_dir = os.path.join(log_dir, "archive")
         try:
             os.makedirs(archive_dir, exist_ok=True)
@@ -1235,12 +1262,8 @@ class DesktopApp(QMainWindow):
         self.vpn_webview.page().setDevToolsPage(self.vpn_webview.page())
         self.vpn_webview.loadStarted.connect(lambda: logger.info("[CRD UI] VPN Page load started"))
         self.vpn_webview.loadProgress.connect(lambda p: logger.debug(f"[CRD UI] VPN Page load progress: {p}%"))
-
-
-
-
+# ------------------------------------------------------------------------
     def reload_vpn_credentials(self):
-        """Load encrypted VPN credentials"""
         try:
             cred_path = os.path.normpath(os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), "..", "config", "vpn.creds"
@@ -1265,9 +1288,6 @@ class DesktopApp(QMainWindow):
             logger.error(f"[CRD UI] Failed to load VPN credentials: {e}")
             self.auto_login_enabled = False
             return False
-
-
-
 # ------------------------------------------------------------------------
     def cleanup_config_ui(self):
         if hasattr(self, 'config_ui_widget') and self.config_ui_widget:
@@ -1434,7 +1454,6 @@ class DesktopApp(QMainWindow):
         return None
 # ------------------------------------------------------------------------
     def load_html_links(self):
-        """Load links from ../config/html.json into the LOCAL dropdown"""
         if not hasattr(self, 'links_combo'):
             logger.warning("[CRD UI] links_combo not initialized")
             return
@@ -1472,7 +1491,6 @@ class DesktopApp(QMainWindow):
                         self.links_combo.addItem(name, url)
                         count += 1
                         logger.info(f"[CRD UI] Added: {name}")
-
             logger.info(f"[CRD UI] Successfully loaded {count} links")
 
             if count > 0:
@@ -1481,13 +1499,6 @@ class DesktopApp(QMainWindow):
         except Exception as e:
             logger.error(f"[CRD UI] Failed to load html.json: {e}")
             self.links_combo.addItem("Error loading links", None)
-# ------------------------------------------------------------------------
-    def browser_go_home(self):
-        if hasattr(self, 'local_browser'):
-            home_url = QUrl("file:///C:/CRD/html/mr.html")          
-            self.local_browser.setUrl(home_url)
-            if hasattr(self, 'address_bar'):
-                self.address_bar.setText(home_url.toString())
 # ------------------------------------------------------------------------
 # APP EXE
     def check_modality(self):
@@ -1785,4 +1796,4 @@ if __name__ == '__main__':
     main()
 # ------------------------------------------------------------------------
 #(screen_geometry.width() - desktop_app.width()) // 2
-#(screen_geometry.height() - desktop_app.height()) // 2
+#(screen_geometry.height() - desktop_app.height()) // 2                                    

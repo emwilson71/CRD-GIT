@@ -183,8 +183,8 @@ SCROLL_AREA_STYLE = """
 # FRAME_STYLE
 FRAME_STYLE = """
     QFrame {
-        background-color: #2A2A2A;
-        border: 1px solid #5A5A5A;
+        background-color: #202020;
+        
         border-radius: 4px;
     }
 """
@@ -225,4 +225,59 @@ QProgressDialog QLabel { color: white; }
 QProgressBar { border: 2px solid #555; border-radius: 5px; background-color: #222; text-align: center; }
 QProgressBar::chunk { background-color: lightgray; width: 20px; margin: 1px; }
 """
+# DARK THEME
+def apply_dark_theme(widget_or_app):
+    dark_ss = f"""
+        QMainWindow, QDialog, QWidget {{
+            background-color: #1A1A1A;
+            color: #E0E0E0;
+        }}
+        {BUTTON_STYLE}
+        {LINE_EDIT_STYLE}
+        {STD_LABEL_STYLE}
+        {TAB_WIDGET_STYLE}
+        {TEXT_EDIT_STYLE}
+        {COMBOBOX_STYLE}
+        {CHECKBOX_STYLE}
+        {SCROLL_AREA_STYLE}
+        {FRAME_STYLE}
+        {MESSAGE_BOX_STYLE}
+        {PROGRESS_BAR_STYLE}
+
+        QListWidget, QTreeWidget, QTreeView {{
+            background-color: #1E1E1E;
+            color: #E0E0E0;
+            border: 1px solid #5A5A5A;
+            border-radius: 4px;
+            outline: none;
+            font-size: 12px;
+        }}
+        QListWidget::item, QTreeWidget::item, QTreeView::item {{
+            padding: 3px 6px;
+        }}
+        QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {{
+            background-color: #3A6EA5;
+            color: #FFFFFF;
+        }}
+        QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {{
+            background-color: #2A2A2A;
+        }}
+        QHeaderView::section {{
+            background-color: #2A2A2A;
+            color: #E0E0E0;
+            padding: 4px;
+            border: 1px solid #5A5A5A;
+            font-weight: bold;
+        }}
+        QSplitter::handle {{
+            background-color: #3A3A3A;
+        }}
+        QSplitter::handle:hover {{
+            background-color: #5A5A5A;
+        }}
+    """
+    try:
+        widget_or_app.setStyleSheet(dark_ss)
+    except Exception as e:
+        pass
 # -------------------------------------------------

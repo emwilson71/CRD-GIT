@@ -2,7 +2,7 @@
 """
 crd_connectvpn.py (ew)
 Connect to mySQL and SP for site information
-Version 1.2 Updated 07/10/26
+Version 1.20 Updated 07/10/26
 """
 # ------------------------------------------------------------------------
 import os

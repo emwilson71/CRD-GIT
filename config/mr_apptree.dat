@@ -1,6 +1,6 @@
 # Apptree.dat
 # Structure A,B,C,D,E,F,G  
-# A = Flag 1 or 0 Execute Button On or Off  
+# A = Flag 1 or 0 or 2 Execute Button On or Off 2 is always on
 # B = Flag 1 or 0 Pop Up Message On or Off   
 # C = Modality 2 characters ie CT or MR  
 # D = Parent / Child in Tree  
@@ -9,26 +9,15 @@
 # G = Arguments sent to app. Separate by space. 
 # Example 1,0,MR,Folder/mnemonicname,modules/filename,arguments.py  
 
-#1,1,MR,SM TOOLS/Create Snapshot (v6+ Only),c:\crd\modules,mod_snapshotMP6.py  
-#1,1,MR,SM TOOLS/Savelog (v6+ Only),c:\crd\modules,mod_savelog.py
-1,1,MR,SM TOOLS/Acqman Log (GP-MP5 Only),c:\crd\modules,acqman.py  
 1,1,MR,SM TOOLS/cPingSSH (v6+ Only),c:\crd\modules,cPingSSH.py  
-1,1,MR,SM TOOLS/cPingTelnet (GP-MP5),c:\crd\modules,cping_telnet.py  
-1,1,MR,SM TOOLS/SSH Powershell (v6+ Only),c:\crd\modules,ssh_powershell.py  
-
+1,1,MR,SM TOOLS/cPingTelnet (GP-MP5),c:\crd\modules,cping_telnet_menu.py  
+1,1,MR,SM TOOLS/SSH Powershell (v6+ Only),c:\crd\modules,ssh_powershell.py
+1,1,MR,SM TOOLS/Purge Log Files (v2.31 Only),c:\crd\modules,purge231logs.py  
 
 1,0,MR,SERVICE TOOLS/Log_Downloader,c:\crd\modules,Log_Downloader_V1_x.pyw,use_current_dat
 1,0,MR,SERVICE TOOLS/Log Scraper,c:\crd\modules,Log_Scraper_V2_x.pyw
-#1,0,MR,SERVICE TOOLS/HPM2 Monitor,c:\crd\modules,HPM2_Monitor_V1_x.pyw,use_current_dat
 1,0,MR,SERVICE TOOLS/HPM2 Monitor,c:\crd\modules,HPM2_Monitor_V1_x.pyw,use_current_dat path="C:\CRD\DOWNLOADS" recursive=True
-1,0,MR,SERVICE TOOLS/Magnet Statistics,c:\crd\modules,magnet_stats.py
-1,0,MR,SERVICE TOOLS/v231LogPurge,c:\crd\modules,purge231logs.py
+1,0,MR,SERVICE TOOLS/Magnet Statistics (WIN10),c:\crd\modules,magnet_stats.py
 
-# --------------------STILL TRYING TO GET THESE TO LOAD. -----------------------------------------------------------------------------------------------------------------------
-#1,0,MR,SERVICE TOOLS/ConnectCoilViewer,C:\Program Files (x86)\LogAnalyzer\InnerVision.dir\Comm.dir\Exec.dir,ConnectCoilViewer.exe,"C:\CRD_UPDATES\TEST_FILES\20210721000000000.RM"
+2,0,MR,UTILITIES/DICOM Header Viewer,c:\crd\modules,DICOMHeaderViewer.py
 
-#1,0,MR,SERVICE TOOLS/CoolingCabiMonitor,C:\Program Files (x86)\LogAnalyzer\InnerVision.dir\Comm.dir\Exec.dir,CoolingCabiMonitor.exe,"C:\CRD_UPDATES\TEST_FILES\20210721000000000_CoolingCabi.txt"
-
-#1,0,MR,SERVICE TOOLS/MagLogViewer,C:\Program Files (x86)\LogAnalyzer\InnerVision.dir\Comm.dir\Exec.dir,MagLogViewer.exe
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#1,0,MR,MISC/MR Analytics (LINK),c:\crd\modules,analytics.py

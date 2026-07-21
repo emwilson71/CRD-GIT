@@ -1,7 +1,10 @@
-#---------------------------------------------------------------------------------------------
-# JSmyser
-# --------------------------------------------------------------------------------------------
-VERSION = "Log_Downloader_V1_35"
+"""
+---------------------------------------------------------------------------------------------
+JSmyser
+Version 1.38 Updated 03/31/26
+---------------------------------------------------------------------------------------------
+"""
+VERSION = "Log_Downloader_V1_38"
 
 import sys
 import json
@@ -66,20 +69,23 @@ EXTERNAL_TOOLS = {
 #        "path": r"C:\MyOtherTools\batch_v2.pyw",       # ← full absolute path (Windows style)
 #        "path": os.path.join(self.base_dir, "reports", "generate_report.py"),  # ← explicit relative with subfolder
 #        "args": ["--verbose"], # arguments
+#        "dynamic_args": ["sid_combo"],
 #        "tooltip": "Analyze logs in detail" # popup message
 #    },
 
     "Log Scraper": {
         "path": ["Log_Scraper_V2_x.pyw",
-                 "C:\CANON\TOOLS\Software\MY_TOOLS\Log_Scraper\Log_Scraper_V2_x.pyw"],
+                 "C:\CRD\modules\Log_Scraper_V2_x.pyw"],
         "args": [],
         "dynamic_args": ["local_loc_combo"],
         "tooltip": "Edit configuration"
     },
     "HPM2 Monitor": {
         "path": ["HPM2_Monitor_V1_x.pyw",
-                 "C:\CANON\TOOLS\Software\MY_TOOLS\HPM2_Monitor\HPM2_Monitor_V1_x.pyw"],
-        "args": ["use_current_dat"],
+                 "C:\CRD\modules\HPM2_Monitor_V1_x.pyw"],
+        "args": ["recursive=True"],
+    #    "dynamic_args": ["sid_combo"],
+        "dynamic_args": ["SID=","path="],        
         "tooltip": "Edit configuration"
     },
 
@@ -207,19 +213,7 @@ FILE_CHECKS = {
                 "default": "C:/InnerVision.dir/M-POWER/{sid}-000/_tui.dir"
             },
             "file_filter": ".acqsts"
-        },
-        {
-            "title": "Acqman Logs (SM)",
-            "usertype": "host_ip",
-            "remote_loc": {
-                ">=V6*SP*": "C:/MRMPlus/tmp/ACQMAN",
-                "<V6*SP*": "C:/usr/tmp/acqman",
-                ">=V3*R*": "C:/usr/tmp/acqman",
-                "<V3*R*": "C:/usr/tmp/acqman",
-                "default": "C:/usr/tmp/acqman"
-            },
-            "file_filter": "acqman-status*"
-        },       
+        },      
         {
             "title": "Autosavelog (SP)",
             "usertype": "sp_ip",
@@ -281,10 +275,10 @@ FILE_CHECKS = {
             "file_filter": "*_f70log.txt"
         },                        
         {
-            "title": "HPM2 Logs (SP)",
+            "title": "HPM Logs (SP)",
             "usertype": "sp_ip",
             "remote_loc": "C:/ProgramData/Helium_Pressure_Monitor",
-            "file_filter": "*HPM2_Test_data.log"
+            "file_filter": "*HPM2_Test_data.log, *HPM2_BTrdr2_test_data.txt"
         },
         {
             "title": "Magnet Logs (SP)",
@@ -418,6 +412,42 @@ FILE_CHECKS = {
             },
             "file_filter": "*TL?.CSV"
         },
+        {
+            "title": "Acqman Logs (SM)",
+            "usertype": "host_ip",
+            "remote_loc": {
+                ">=V6*SP*": "C:/MRMPlus/tmp/ACQMAN",
+                "<V6*SP*": "C:/usr/tmp/acqman",
+                ">=V3*R*": "C:/usr/tmp/acqman",
+                "<V3*R*": "C:/usr/tmp/acqman",
+                "default": "C:/usr/tmp/acqman"
+            },
+            "file_filter": "acqman-status*"
+        },  
+        {
+            "title": "GCoilTemp Current Log (SM)",
+            "usertype": "host_ip",
+            "remote_loc": {
+                ">=V6*SP*": "C:/MRMPlus/data/preScan/",
+                "<V6*SP*": "C:/MRMPlus/data/preScan/",
+                ">=V3*R*": "C:/MRMPlus/data/preScan/",
+                "<V3*R*": "C:/gp/data/preScan/",
+                "default": "C:/gp/data/preScan/"
+            },
+            "file_filter": "GCoilTemp*.log"
+        },    
+        {
+            "title": "GCoilTemp Older Logs (SM)",
+            "usertype": "host_ip",
+            "remote_loc": {
+                ">=V6*SP*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                "<V6*SP*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                ">=V3*R*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                "<V3*R*": "C:/gp/data/preScan/gcoiltemp/",
+                "default": "C:/gp/data/preScan/gcoiltemp/"
+            },
+            "file_filter": "GCoilTemp*.log"
+        },                  
       
     ]
 }
@@ -2974,7 +3004,13 @@ class MainWindow(QMainWindow):
                 if dynamic_type == "local_loc_combo":
                     cmd.append(self.local_loc_combo.currentText().strip())
                 elif dynamic_type == "sid_combo":
-                    cmd.append(self.sid_combo.currentText())
+                    cmd.append(f"sid_combo={self.sid_combo.currentText()}")
+                elif dynamic_type == "SID=":
+                    s = self.sid_combo.currentText().split("(")[1]
+                    sid = s.rstrip(")")
+                    cmd.append(f"SID={sid}")
+                elif dynamic_type == "path=":
+                    cmd.append(f"path={self.local_loc_combo.currentText().strip()}")
 
             # Launch
             subprocess.Popen(cmd, shell=False)
@@ -3099,12 +3135,14 @@ class MainWindow(QMainWindow):
 
 
         # Download Options
-        self.timed_check.setChecked(defaults.get("timed", False))
+        if "timed" in defaults:
+            self.timed_check.setChecked(defaults.get("timed", False))
         
         if "period" in defaults:
             self.period_combo.setCurrentText(defaults["period"])
 
-        self.overwrite_check.setChecked(defaults.get("overwrite", False))
+        if "overwrite" in defaults:
+            self.overwrite_check.setChecked(defaults.get("overwrite", False))
 
 
     def toggle_rows(self):

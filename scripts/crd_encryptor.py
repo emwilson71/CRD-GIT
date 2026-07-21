@@ -2,7 +2,7 @@
 """X
 crd_encryptor.py (ew)
 Stores the user.enc with the json values
-Version 1.0 Updated 04/08/25
+Version 1.01 Updated 04/08/25
 
 """
 # ----------------------------------------------------------------------

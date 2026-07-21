@@ -1,11 +1,12 @@
 # ------------------------------------------------------------------------
-"""X
+"""
 sid_manager.py
 ewilson@us.medical.canon 08/07/25
 jsmyser made a few tweaks on 10/03/25
 JS_EDITS 25.12.24
 JS_EDITS 2026.03.05 Fixed tables from missing data during refresh.
-Version 1.02 Updated 03/05/26
+EW_EDIT 2026.07.17 Added icons to match ui
+Version 1.03 Updated 07/17/26
 """
 # ------------------------------------------------------------------------
 import sys
@@ -19,22 +20,25 @@ from PyQt5.QtWidgets import (
     QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog,
     QFormLayout, QHeaderView, QCheckBox, QComboBox, QGroupBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer
-from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QPalette, QColor, QPixmap, QIcon
 from crd_embedded import CRDLogger, Styles
 import mysql.connector
 from cryptography.fernet import Fernet
-
+icon_path = lambda name: os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../html/icons/", name))
 # ------------------------------------------------------------------------
 class SIDDatabase:
-    def __init__(self, filename='../data/siddb.json'):
+    def __init__(self, filename='C:/CRD/data/siddb.json'):
         self.filename = filename
         self.create_database_if_not_exists()
+# ------------------------------------------------------------------------
     def create_database_if_not_exists(self):
         if not os.path.exists(self.filename):
             db = {"index": []}
             with open(self.filename, 'w') as file:
                 json.dump(db, file, indent=4)
+# ------------------------------------------------------------------------
     def read_database(self) -> Dict[str, List[Any]]:
         try:
             with open(self.filename, 'r') as file:
@@ -42,16 +46,20 @@ class SIDDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             self.create_database_if_not_exists()
             return self.read_database()
+# ------------------------------------------------------------------------
     def write_database(self, data: Dict[str, List[Any]]):
         with open(self.filename, 'w') as file:
             json.dump(data, file, indent=4)
+# ------------------------------------------------------------------------
     def add_entry(self, entry: Dict[str, Any]):
         database = self.read_database()
         database['index'].append(entry)
         self.write_database(database)
+# ------------------------------------------------------------------------
     def find_by_sid(self, sid: str) -> List[Dict[str, Any]]:
         database = self.read_database()
         return [entry for entry in database['index'] if entry['sid'] == sid]
+# ------------------------------------------------------------------------
     def update_entry(self, old_sid: str, updated_entry: Dict[str, Any]):
         database = self.read_database()
         for i, entry in enumerate(database['index']):
@@ -59,6 +67,7 @@ class SIDDatabase:
                 database['index'][i] = updated_entry
                 break
         self.write_database(database)
+# ------------------------------------------------------------------------
     def delete_entry_by_sid(self, sid: str):
         database = self.read_database()
         database['index'] = [entry for entry in database['index'] if entry['sid'] != sid]
@@ -116,10 +125,12 @@ class EntryDialog(QDialog):
         main_layout.addLayout(layout)
         main_layout.addLayout(button_layout)
         self.setLayout(main_layout)
+# ------------------------------------------------------------------------
     def create_styled_label(self, text):
         label = QLabel(text)
         label.setStyleSheet(Styles.STD_LABEL_STYLE)
         return label
+# ------------------------------------------------------------------------
     def get_entry(self):
         return {
             'sid': self.sid_input.text(),
@@ -196,18 +207,20 @@ class LookupDialog(QDialog):
         contract_layout.addWidget(contract_type_label)
         self.contract_type_checks = {}
         checkbox_layout = QHBoxLayout()
-        options = ["🔀 Toggle All", "Full Service", "Warranty", "PM", "In-House", "Partnership", "Point of Purchase"]
+        options = ["Toggle All", "Full Service", "Warranty", "PM", "In-House", "Partnership", "Point of Purchase"]
         for option in options:
-            if option == "🔀 Toggle All":
+            if option == "Toggle All":
                 button = QPushButton(option)
                 button.setFixedWidth(100)
+                button.setIcon(QIcon(icon_path("toggle.png")))
+                button.setIconSize(QSize(24, 24))
                 button.setStyleSheet(Styles.BUTTON_STYLE)
                 button.setDefault(False)
                 button.setAutoDefault(False) 
                 def toggle_all():
-                    all_checked = all(self.contract_type_checks[opt].isChecked() for opt in options if opt != "🔀 Toggle All")
+                    all_checked = all(self.contract_type_checks[opt].isChecked() for opt in options if opt != "Toggle All")
                     for opt in options:
-                        if opt != "🔀 Toggle All":
+                        if opt != "Toggle All":
                             self.contract_type_checks[opt].setChecked(not all_checked)
                 button.clicked.connect(toggle_all)
                 checkbox_layout.addWidget(button)
@@ -226,17 +239,20 @@ class LookupDialog(QDialog):
         
 # QUERY BUTTON
         button_layout = QHBoxLayout()
-        query_button = QPushButton("🔎 QUERY")
+        query_button = QPushButton("QUERY")
+        query_button.setIcon(QIcon(icon_path("search.png")))
+        query_button.setIconSize(QSize(24, 24))
         query_button.setStyleSheet(Styles.BUTTON_STYLE)
         query_button.setFixedWidth(160)
         query_button.clicked.connect(self.perform_query)
-#        button_layout.addSpacing(120)
         button_layout.addStretch()
         button_layout.addWidget(query_button)
 
 # LOAD TO CRD BUTTON # Added by JS        
         if isinstance(parent, SIDDatabaseWindow) and parent.main_app and type(parent.main_app).__name__ == "DesktopApp":
-            load_to_crd_button = QPushButton("📤 Load to CRD")
+            load_to_crd_button = QPushButton("Load to CRD")
+            load_to_crd_button.setIcon(QIcon(icon_path("download.png")))
+            load_to_crd_button.setIconSize(QSize(24, 24))
             load_to_crd_button.setStyleSheet(Styles.BUTTON_STYLE)
             load_to_crd_button.setDefault(False)
             load_to_crd_button.setAutoDefault(False) 
@@ -249,15 +265,16 @@ class LookupDialog(QDialog):
             button_layout.addSpacing(200)
 
 # ADD TO DATABASE BUTTON  # Added by JS                
-        add_to_db_button = QPushButton("➕ Add to SID(s) to Local Database")
+        add_to_db_button = QPushButton("Add to SID(s) to Local Database")
+        add_to_db_button.setIcon(QIcon(icon_path("add.png")))
+        add_to_db_button.setIconSize(QSize(24, 24))
         add_to_db_button.setStyleSheet(Styles.BUTTON_STYLE)
         add_to_db_button.setDefault(False)
         add_to_db_button.setAutoDefault(False)         
         add_to_db_button.setFixedWidth(260)
         add_to_db_button.clicked.connect(self.add_to_database)
         button_layout.addWidget(add_to_db_button)
-        button_layout.addStretch()
-#        button_layout.addSpacing(30)        
+        button_layout.addStretch()      
         layout.addLayout(button_layout)
         
 # GRID  #JS added contract type, QTableWidget.ExtendedSelection, QTableWidget.SelectRows, Sorting, and custom mouse press event.
@@ -287,6 +304,8 @@ class LookupDialog(QDialog):
 # CLOSE
         close_button_layout = QHBoxLayout()
         close_button = QPushButton("Close")
+        close_button.setIcon(QIcon(icon_path("x.png")))
+        close_button.setIconSize(QSize(24, 24))
         close_button.setStyleSheet(Styles.BUTTON_STYLE)
         close_button.clicked.connect(self.close)
         close_button_layout.addStretch()
@@ -555,13 +574,16 @@ class SIDDatabaseWindow(QWidget):
         sid_label.setObjectName("inputLabel")
         site_name_label = QLabel("SITE NAME:")
         site_name_label.setObjectName("inputLabel")
-        lookup_button = QPushButton("🕵 LOOKUP")
+        lookup_button = QPushButton("LOOKUP")
+        lookup_button.setIcon(QIcon(icon_path("search.png")))
+        lookup_button.setIconSize(QSize(24, 24))
         lookup_button.setStyleSheet(Styles.BUTTON_STYLE)
-        lookup_button.setFixedSize(90, 30)
+        lookup_button.setFixedSize(110, 30)
         lookup_button.clicked.connect(self.show_lookup_dialog)
-        clear_button = QPushButton("🧹 CLEAR")
+        clear_button = QPushButton("CLEAR")
+        clear_button.setIcon(QIcon(icon_path("x.png")))
         clear_button.setStyleSheet(Styles.BUTTON_STYLE)
-        clear_button.setFixedSize(90, 30)
+        clear_button.setFixedSize(110, 30)
         clear_button.clicked.connect(self.clear_inputs)
   
         input_layout.addWidget(sid_label)
@@ -585,45 +607,67 @@ class SIDDatabaseWindow(QWidget):
         self.table.setHorizontalHeaderLabels([
             "SID", "Site Name", "SP IP", "Host IP", "Modality", "Machine", "SW Version"
         ])
+        
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
         self.table.setSortingEnabled(True)
-        if self.main_app is not None: #Added by JS
+        if self.main_app is not None:
             self.table.itemClicked.connect(self.populate_main_app)
-        layout.addWidget(self.table)
-        btn_layout = QHBoxLayout()
-        add_btn = QPushButton("➕ ADD")
-        edit_btn = QPushButton("📝 EDIT")
-        delete_btn = QPushButton("❌ DELETE")
-        refresh_btn = QPushButton("🔄 REFRESH")
-        export_btn = QPushButton("📤 EXPORT")
-        for btn in [add_btn, edit_btn, delete_btn, refresh_btn, export_btn]:
+            
+        btn_layout = QHBoxLayout()         
+        add_btn = QPushButton("ADD")
+        add_btn.setIcon(QIcon(icon_path("add.png")))
+        add_btn.setIconSize(QSize(24, 24))
+        edit_btn = QPushButton("EDIT")
+        edit_btn.setIcon(QIcon(icon_path("edit.png")))
+        edit_btn.setIconSize(QSize(24, 24))
+        delete_btn = QPushButton("DELETE")
+        delete_btn.setIcon(QIcon(icon_path("remove.png")))
+        delete_btn.setIconSize(QSize(24, 24))
+        refresh_btn = QPushButton("REFRESH")
+        refresh_btn.setIcon(QIcon(icon_path("refresh.png")))
+        refresh_btn.setIconSize(QSize(24, 24))
+        export_btn = QPushButton("EXPORT")
+        export_btn.setIcon(QIcon(icon_path("upload.png")))
+        export_btn.setIconSize(QSize(24, 24))
+        
+        buttons = [add_btn, edit_btn, delete_btn, refresh_btn, export_btn]
+
+        for btn in buttons:
             btn.setFixedHeight(30)
             btn.setFixedWidth(130)
             btn.setStyleSheet(Styles.BUTTON_STYLE)
-      
-        add_btn.setStyleSheet(Styles.add_button if hasattr(Styles, 'add_button') else Styles.BUTTON_STYLE)
-        edit_btn.setStyleSheet(Styles.edit_button if hasattr(Styles, 'edit_button') else Styles.BUTTON_STYLE)
-        delete_btn.setStyleSheet(Styles.delete_button if hasattr(Styles, 'delete_button') else Styles.BUTTON_STYLE)
-        refresh_btn.setStyleSheet(Styles.refresh_button if hasattr(Styles, 'refresh_button') else Styles.BUTTON_STYLE)
-        export_btn.setStyleSheet(Styles.export_button if hasattr(Styles, 'export_button') else Styles.BUTTON_STYLE)
+
+        if hasattr(Styles, 'add_button'):
+            add_btn.setStyleSheet(Styles.add_button)
+            
+        if hasattr(Styles, 'edit_button'):
+            edit_btn.setStyleSheet(Styles.edit_button)
+        if hasattr(Styles, 'delete_button'):
+            delete_btn.setStyleSheet(Styles.delete_button)
+        if hasattr(Styles, 'refresh_button'):
+            refresh_btn.setStyleSheet(Styles.refresh_button)
+        if hasattr(Styles, 'export_button'):
+            export_btn.setStyleSheet(Styles.export_button)
+
         add_btn.clicked.connect(self.add_entry)
         edit_btn.clicked.connect(self.edit_entry)
         delete_btn.clicked.connect(self.delete_entry)
         refresh_btn.clicked.connect(self.load_entries)
         export_btn.clicked.connect(self.export_to_csv)
+
         btn_layout.addStretch()
-        btn_layout.addWidget(add_btn)
-        btn_layout.addWidget(edit_btn)
-        btn_layout.addWidget(delete_btn)
-        btn_layout.addWidget(refresh_btn)
-        btn_layout.addWidget(export_btn)
+        for btn in buttons:
+            btn_layout.addWidget(btn)
         btn_layout.addStretch()
+
+        layout.addWidget(self.table)
         layout.addLayout(btn_layout)
+
         self.setLayout(layout)
         self.load_entries()
         self.apply_dark_theme()
-        self.table.sortItems(1) # JS_EDITS 2026.03.05 Added to sort initial table by site name.
+        self.table.sortItems(1)  # JS_EDITS 2026.03.05 Added to sort initial table by site name.
 
 # ------------------------------------------------------------------------
     def show_lookup_dialog(self):

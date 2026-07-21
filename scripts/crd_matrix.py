@@ -1,9 +1,9 @@
 # ------------------------------------------------------------------------
-"""X
+"""
 crd_matrix.py (ew)
 Decodes sw versions and passwords for connectivity
 jsmyser changed port = 2025.12.16. See JS Edit.
-Version 1.1 Updated 12/16/25
+Version 1.10 Updated 12/16/25
 """
 # ------------------------------------------------------------------------
 # LIBRARIES

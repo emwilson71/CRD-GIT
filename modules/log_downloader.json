@@ -4,9 +4,9 @@
     "remote_locations": [],
     "local_locations": [],
     "last_selections": {
-        "sid": "341795",
+        "sid": "326512",
         "filechecks": [
-            "Acqman Logs (SM)"
+            "(Run && DL) Snapshot Log"
         ],
         "filemode": "File Checks",
         "ip_type": "",
@@ -16,9 +16,9 @@
         "local_loc": "C:/CRD/downloads",
         "file_filter": "",
         "protocol": "sftp",
-        "date_filter_enabled": false,
-        "start_date": "2000-01-01",
-        "end_date": "2000-01-01",
+        "date_filter_enabled": true,
+        "start_date": "2026-07-17",
+        "end_date": "2026-07-20",
         "quick_date": "",
         "incremental_download": false,
         "timed_download": false,
@@ -133,18 +133,6 @@
                 "file_filter": ".acqsts"
             },
             {
-                "title": "Acqman Logs (SM)",
-                "usertype": "host_ip",
-                "remote_loc": {
-                    ">=V6*SP*": "C:/MRMPlus/tmp/ACQMAN",
-                    "<V6*SP*": "C:/usr/tmp/acqman",
-                    ">=V3*R*": "C:/usr/tmp/acqman",
-                    "<V3*R*": "C:/usr/tmp/acqman",
-                    "default": "C:/usr/tmp/acqman"
-                },
-                "file_filter": "acqman-status*"
-            },
-            {
                 "title": "Autosavelog (SP)",
                 "usertype": "sp_ip",
                 "remote_loc": {
@@ -205,10 +193,10 @@
                 "file_filter": "*_f70log.txt"
             },
             {
-                "title": "HPM2 Logs (SP)",
+                "title": "HPM Logs (SP)",
                 "usertype": "sp_ip",
                 "remote_loc": "C:/ProgramData/Helium_Pressure_Monitor",
-                "file_filter": "*HPM2_Test_data.log"
+                "file_filter": "*HPM2_Test_data.log, *HPM2_BTrdr2_test_data.txt"
             },
             {
                 "title": "Magnet Logs (SP)",
@@ -341,6 +329,42 @@
                     "default": "C:/InnerVision.dir/M-POWER/{sid}-000/_tui.dir"
                 },
                 "file_filter": "*TL?.CSV"
+            },
+            {
+                "title": "Acqman Logs (SM)",
+                "usertype": "host_ip",
+                "remote_loc": {
+                    ">=V6*SP*": "C:/MRMPlus/tmp/ACQMAN",
+                    "<V6*SP*": "C:/usr/tmp/acqman",
+                    ">=V3*R*": "C:/usr/tmp/acqman",
+                    "<V3*R*": "C:/usr/tmp/acqman",
+                    "default": "C:/usr/tmp/acqman"
+                },
+                "file_filter": "acqman-status*"
+            },
+            {
+                "title": "GCoilTemp Current Log (SM)",
+                "usertype": "host_ip",
+                "remote_loc": {
+                    ">=V6*SP*": "C:/MRMPlus/data/preScan/",
+                    "<V6*SP*": "C:/MRMPlus/data/preScan/",
+                    ">=V3*R*": "C:/MRMPlus/data/preScan/",
+                    "<V3*R*": "C:/gp/data/preScan/",
+                    "default": "C:/gp/data/preScan/"
+                },
+                "file_filter": "GCoilTemp*.log"
+            },
+            {
+                "title": "GCoilTemp Older Logs (SM)",
+                "usertype": "host_ip",
+                "remote_loc": {
+                    ">=V6*SP*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                    "<V6*SP*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                    ">=V3*R*": "C:/MRMPlus/data/preScan/gcoiltemp/",
+                    "<V3*R*": "C:/gp/data/preScan/gcoiltemp/",
+                    "default": "C:/gp/data/preScan/gcoiltemp/"
+                },
+                "file_filter": "GCoilTemp*.log"
             }
         ]
     }

@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------------
 """
 crd_update.py - Remote Update Module for Private Repo
-Updated: 2026-07-17
+Version 1.01 Updated 07/17/26
 """
 import sys
 import os
@@ -10,14 +10,15 @@ import json
 from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox
 
-PROJECT_ROOT = r"C:\CRD\scripts"
-GITHUB_TOKEN = "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"   # <<< Replace with env var later
+PROJECT_ROOT = os.path.join(
+    os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__),
+    "scripts"
+)
+GITHUB_TOKEN = "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"
 
 def check_for_remote_updates(parent_window):
     try:
         base_url = f"https://{GITHUB_TOKEN}@raw.githubusercontent.com/emwilson71/CRD-GIT/main/"
-       
-        # Get remote versions
         remote_versions_url = base_url + "config/versions.json"
         r = requests.get(remote_versions_url, timeout=10)
         if r.status_code != 200:
@@ -25,16 +26,13 @@ def check_for_remote_updates(parent_window):
             return
        
         remote_versions = r.json()
-       
-        # Get local versions
         local_versions_path = os.path.join(PROJECT_ROOT, "../config/versions.json")
         if os.path.exists(local_versions_path):
             with open(local_versions_path, "r", encoding="utf-8") as f:
                 local_versions = json.load(f)
         else:
             local_versions = {}
-       
-        # Find files that need update
+    
         needs_update = []
         for rel_path, remote_ver in remote_versions.items():
             if not remote_ver:

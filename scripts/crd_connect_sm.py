@@ -2,7 +2,7 @@
 """/ Check and change to SSH Win7 (ew)
 crd_connectvpn.py
 Connect to mySQL and SP for site information
-Version 1.0 Updated 08/03/25
+Version 1.00 Updated 08/03/25
 """
 # ------------------------------------------------------------------------
 import os

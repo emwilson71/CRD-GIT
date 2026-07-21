@@ -2,12 +2,10 @@
 Version 1.00 Updated 10/06/25  
 """
 # ------------------------------------------------------------------------
-# X
 # cpingssh.py for CRD
 # ewilson@us.medical.canon
-# 10/06/25 Updated Logfile
+# Version 10/06/25 Updated Logfile
 # ------------------------------------------------------------------------
-
 import re, os, sys, paramiko
 from datetime import datetime
 from PyQt5.QtWidgets import (

@@ -1,0 +1,16 @@
+{
+  "links": [
+    {
+      "name": "CRD Home",
+      "url": "html/index.html"
+    },
+    {
+      "name": "HELP",
+      "url": "html/help.html"
+    },
+    {
+      "name": "INTRANET",
+      "url": ""
+    }
+  ]
+}

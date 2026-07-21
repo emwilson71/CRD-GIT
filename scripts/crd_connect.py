@@ -2,7 +2,7 @@
 """
 crd_connect.py (ew)
 Establish connection to SP for SM Scripts
-Version 1.1 Updated 02/03/26
+Version 1.10 Updated 02/03/26
 """
 # USAGE
 """

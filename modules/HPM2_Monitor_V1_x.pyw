@@ -1,8 +1,10 @@
 """
+---------------------------------------------------------------------------------------------
 JSmyser
-
+Version 1.30 Updated 06/02/26
+---------------------------------------------------------------------------------------------
 """
-VERSION = "HPM2_Monitor_V1_23"
+VERSION = "HPM2_Monitor_V1_30"
 
 import sys
 import os
@@ -12,9 +14,11 @@ import numpy as np
 from dateutil.relativedelta import relativedelta
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QComboBox, QLineEdit, QDialog, QCheckBox,
-                             QFrame, QSizePolicy, QDateEdit, QSpacerItem, QFileDialog)
+                             QFrame, QSizePolicy, QDateEdit, QSpacerItem, QFileDialog, 
+                             QTextEdit, QMessageBox)
 from PyQt5.QtCore import QTimer, Qt, QRectF, QPointF, QPoint, QDate
-from PyQt5.QtGui import QPainter, QPen, QColor, QFont, QLinearGradient, QCursor, QPixmap, QPainterPath
+from PyQt5.QtGui import (QPainter, QPen, QColor, QFont, QLinearGradient, QCursor, QPixmap, 
+                         QTextCursor, QPainterPath)
 import pyqtgraph as pg
 from pyqtgraph import DateAxisItem
 import glob
@@ -22,7 +26,19 @@ import re
 import time
 from tzlocal import get_localzone
 import zoneinfo
-
+import json
+import serial
+import subprocess
+import shutil
+# Optional dependencies for firmware update (METROBOOT detection)
+try:
+    import win32api
+    import psutil
+    HAS_FIRMWARE_SUPPORT = True
+except ImportError:
+    win32api = None
+    psutil = None
+    HAS_FIRMWARE_SUPPORT = False
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
@@ -33,12 +49,15 @@ def get_base_path():
         return os.path.dirname(os.path.abspath(__file__))
 
 LOG_FOLDERS = [
-    {"path": os.path.join(get_base_path(), "logs"), "recursive": True},
-    {"path": os.path.join(get_base_path(), "..", "downloads"), "recursive": True},
-    {"path": r"c:\crd\downloads", "recursive": True},
+#    {"path": os.path.join(get_base_path(), "logs"), "recursive": True},
+#    {"path": os.path.join(get_base_path()), "recursive": False},
+#    {"path": os.path.join(get_base_path(), "..", "downloads"), "recursive": True},
+#    {"path": r"c:\crd\downloads", "recursive": True},
     {"path": r"c:\programdata\helium_pressure_monitor", "recursive": False},
             ]
 
+CONFIG_FILE = os.path.join(get_base_path(), "hpm2_data.json")
+FIRMWARE_DIR = os.path.join(get_base_path(), "HPM2_Firmware")
 DEFAULT_CURRENTDB_PATH = "C:/CRD/config/current.dat"
 
 DARK_BG = QColor(30, 30, 30)
@@ -46,12 +65,19 @@ TEXT_COLOR = QColor(200, 200, 200)
 FRAME_BG = QColor(40, 40, 40)
 BORDER = QColor(80, 80, 80)
 
+# New colors for better visibility
+LIGHT_GREEN = QColor(120, 255, 140)   # Nice bright but not neon green
+WARNING_YELLOW = QColor(255, 240, 100)
+CRITICAL_RED = QColor(255, 90, 90)
+SOFT_GRAY = QColor(200, 200, 210) 
+
 class CustomTooltip(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()}; border: 1px solid {TEXT_COLOR.name()}; padding: 5px;")
         self.setFont(QFont("Arial", 10))
         self.setWindowFlags(Qt.ToolTip | Qt.FramelessWindowHint)
+        self.setTextFormat(Qt.RichText)
         self.hide()
 
     def show_at(self, pos, text):
@@ -221,33 +247,1051 @@ class DialGauge(QWidget):
         else:
             super().mouseDoubleClickEvent(event)
 
+
+
+
 class SettingsDialog(QDialog):
-    def __init__(self, offset=0.0, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.offset = offset
-        self.setWindowTitle("Settings")
+        self.setWindowTitle("Tools")
         self.setStyleSheet(f"background-color: {DARK_BG.name()}; color: {TEXT_COLOR.name()};")
-        layout = QVBoxLayout()
         
+        self.layout = QVBoxLayout()
+        self.layout.setSpacing(12)
+        self.layout.setContentsMargins(15, 15, 15, 15)
+
+    # GUI version (hardcoded or from your own VERSION variable)
+        gui_ver_layout = QHBoxLayout()
+        gui_ver_layout.setSpacing(10)
+        gui_ver_layout.setContentsMargins(0, 0, 0, 0)        
+        gui_ver_text = (QLabel("HPM2 Monitor Ver.:"))
+        gui_ver_text.setFixedWidth(120)  # ← set to longest label width
+        gui_ver_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)        
+        gui_ver_layout.addWidget(gui_ver_text)
+        self.gui_ver_label = QLabel(VERSION)
+        self.gui_ver_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+        gui_ver_layout.addWidget(self.gui_ver_label, stretch=1)
+        self.layout.addLayout(gui_ver_layout)
+
+        # Check if config file exists (standalone mode?)
+        is_standalone = not os.path.exists(CONFIG_FILE)
+
+        if is_standalone:
+            # Standalone mode: only show GUI version + a note
+            standalone_note = QLabel("Standalone Mode (No service config found)")
+            standalone_note.setStyleSheet("color: #888888; font-style: italic;")
+            standalone_note.setAlignment(Qt.AlignCenter)
+            self.layout.addWidget(standalone_note)
+            self.layout.addStretch()
+            self.setLayout(self.layout)
+            return  # ← exit early - nothing else added
+
+    # Service version from JSON
+        service_ver_layout = QHBoxLayout()
+        service_ver_layout.setSpacing(10)
+        service_ver_layout.setContentsMargins(0, 0, 0, 0)         
+        service_ver_text = QLabel("HPM2 Service Ver.:")
+        service_ver_text.setFixedWidth(120)  # ← set to longest label width
+        service_ver_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)          
+        service_ver_layout.addWidget(service_ver_text)
+        self.service_ver_label = QLabel("Checking...")
+        self.service_ver_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+        service_ver_layout.addWidget(self.service_ver_label, stretch=1)
+        self.layout.addLayout(service_ver_layout)
+
+        self.add_separator()
+
+    # Action buttons
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(10)
+
+        sample_btn = QPushButton("Take Sample")
+        sample_btn.clicked.connect(self.take_sample)
+        actions_layout.addWidget(sample_btn)
+
+        reboot_btn = QPushButton("Reboot Controller")
+        reboot_btn.clicked.connect(self.reboot_controller)
+        actions_layout.addWidget(reboot_btn)        
+
+        # Terminal button
+        terminal_btn = QPushButton("Open Terminal")
+        terminal_btn.clicked.connect(self.open_terminal)
+        actions_layout.addWidget(terminal_btn)
+
+        open_manual_btn = QPushButton("Open Manual")
+        open_manual_btn.clicked.connect(self.open_manual)
+        actions_layout.addWidget(open_manual_btn)
+
+        log_btn = QPushButton("View Error Log")
+        log_btn.clicked.connect(self.open_error_log)
+        actions_layout.addWidget(log_btn)
+
+        self.layout.addLayout(actions_layout)
+        self.layout.addStretch()
+
+        self.setLayout(self.layout)
+
+        self.add_separator()
+
+    # Current offset row - same label width for perfect alignment
         offset_layout = QHBoxLayout()
-        offset_layout.addWidget(QLabel("Magnet Gauge Pressure Offset:"))
-#        self.offset_input = QLineEdit()
-        self.offset_input = QLineEdit(("Future Add On")) # This feature will be added on in the future. 
-        self.offset_input.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
-        offset_layout.addWidget(self.offset_input)
-        set_offset_btn = QPushButton("Set")
-        set_offset_btn.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
-        set_offset_btn.clicked.connect(self.set_offset)
-        offset_layout.addWidget(set_offset_btn)
-        self.offset_label = QLabel(f"Current Offset: {self.offset:.2f}")
-        offset_layout.addWidget(self.offset_label)
-        layout.addLayout(offset_layout)
+        offset_layout.setSpacing(10)
+        offset_layout.setContentsMargins(0, 0, 0, 0)
+
+        offset_label_text = QLabel("Current Offset:")
+        offset_label_text.setFixedWidth(120)  # same as above
+        offset_label_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        offset_layout.addWidget(offset_label_text)
+
+        self.offset_label = QLabel("0.00")
+        self.offset_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+        offset_layout.addWidget(self.offset_label)  # value expands right
+
+        self.offset_warning = QLabel("")
+        self.offset_warning.setStyleSheet("color: #ff4444; font-weight: bold;")
+        offset_layout.addWidget(self.offset_warning, stretch=1)
+
+        self.layout.addLayout(offset_layout)
+        self._offset_raw_valid = False
+
+        # Gauge pressure input
+        gauge_layout = QHBoxLayout()
+        gauge_layout.addWidget(QLabel("Gauge Pressure:"))
+        self.gauge_input = QLineEdit()
+        self.gauge_input.setPlaceholderText("e.g. 0.5")
+        self.gauge_input.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
+    #    self.gauge_input.returnPressed.connect(self.send_gauge_offset)
+        gauge_layout.addWidget(self.gauge_input)
+        self.set_gauge_btn = QPushButton("Set Offset (Gauge)")
+        self.set_gauge_btn.clicked.connect(self.send_gauge_offset)
+        gauge_layout.addWidget(self.set_gauge_btn)
+        self.layout.addLayout(gauge_layout)
+
+        # Manual offset input
+        manual_layout = QHBoxLayout()
+        manual_layout.addWidget(QLabel("Manual Offset:"))
+        self.manual_input = QLineEdit()
+        self.manual_input.setPlaceholderText("e.g. 0.50 or -1.23")
+        self.manual_input.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
+        self.manual_input.returnPressed.connect(self.send_manual_offset)
+        manual_layout.addWidget(self.manual_input)
+        set_manual_btn = QPushButton("Set Manual Offset")
+        set_manual_btn.clicked.connect(self.send_manual_offset)
+        manual_layout.addWidget(set_manual_btn)
+        self.layout.addLayout(manual_layout)
+
+        # Reset button
+        reset_btn = QPushButton("Reset Offset to 0.00")
+        reset_btn.clicked.connect(self.send_reset_offset)
+        self.layout.addWidget(reset_btn)
+
+        self.add_separator()
+
+    # Firmware version row
+        fw_layout = QHBoxLayout()
+        fw_layout.setSpacing(10)
+        fw_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Label pushed left, fixed width for alignment
+        fw_label_text = QLabel("Controller Firmware:")
+        fw_label_text.setFixedWidth(120)  
+        fw_label_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        fw_layout.addWidget(fw_label_text)
+
+        self.fw_label = QLabel("Checking...")
+        self.fw_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+        fw_layout.addWidget(self.fw_label)  # value expands right
+
+        self.fw_warning = QLabel("")
+        self.fw_warning.setStyleSheet("color: #ff4444; font-weight: bold;")
+        fw_layout.addWidget(self.fw_warning, stretch=1)
+
+        self.layout.addLayout(fw_layout)
+
+        self.fw_update_btn = QPushButton("Update Firmware")
+        self.fw_update_btn.clicked.connect(self.update_firmware)
+        self.layout.addWidget(self.fw_update_btn)
+
+        self.add_separator()
+
+    # Service name display (read-only for now) 
+        service_name_layout = QHBoxLayout()
+        service_name_layout.setSpacing(10)
+        service_name_layout.setContentsMargins(0, 0, 0, 0)        
+        service_name_text = QLabel("Service Name:")
+        service_name_text.setFixedWidth(90)  
+        service_name_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)         
+        service_name_layout.addWidget(service_name_text)
+        self.service_name_label = QLabel("HPM2_Service") # <<================ NEEDS TO PULL SERVICE NAME ================================================ 
+        self.service_name_label.setFixedWidth(120)   
+        self.service_name_label.setStyleSheet("color: #00cccc;")
+        service_name_layout.addWidget(self.service_name_label)
+        status_label_text = QLabel("Status:")
+        service_name_layout.addWidget(status_label_text)
+
+        self.service_status = QLabel("Checking...")
+        self.service_status.setStyleSheet("color: #00cc00; font-weight: bold;")
+        service_name_layout.addWidget(self.service_status, stretch=1)
+        self.layout.addLayout(service_name_layout)
+
+        # Service layout control buttons
+        service_layout = QHBoxLayout()
+        service_layout.setSpacing(10)
+        start_btn = QPushButton("Start Service")
+        start_btn.clicked.connect(self.start_service)
+        service_layout.addWidget(start_btn)
+        stop_btn = QPushButton("Stop Service")
+        stop_btn.clicked.connect(self.stop_service)
+        service_layout.addWidget(stop_btn)
+        restart_btn = QPushButton("Restart Service")
+        restart_btn.clicked.connect(self.restart_service)
+        service_layout.addWidget(restart_btn)
+        self.layout.addLayout(service_layout)
+
+        self.add_separator()
         
+        com_msg_layout = QHBoxLayout()
+        com_msg_layout.setSpacing(10)
+        com_msg_layout.setContentsMargins(80, 0, 0, 0)        
+        com_msg_text = QLabel("Changing COM Port might require system reboot.")
+    #    com_msg_text.setFixedWidth(120)  
+    #    com_msg_text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+    #    com_msg_text.setAlignment(Qt.AlignCenter)              
+        com_msg_layout.addWidget(com_msg_text)
+        self.layout.addLayout(com_msg_layout)
+
+    # COM port editor (loads from JSON)
+        com_layout = QHBoxLayout()
+        com_layout.setSpacing(10)
+        com_layout.setContentsMargins(0, 0, 0, 0) 
+        com_layout.addWidget(QLabel("COM Port:"))
+        self.com_input = QLineEdit("9")  # default
+        self.com_input.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
+        self.com_input.returnPressed.connect(self.apply_com_port)
+        self.com_input.setFixedWidth(100)
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            loaded_port = config.get("config", {}).get("com_port", "COM9")
+            
+            # Strip "COM" if present, so we only show the number
+            if isinstance(loaded_port, str) and loaded_port.upper().startswith("COM"):
+                loaded_port = loaded_port[3:].strip()
+            
+            self.com_input.setText(loaded_port)
+        except:
+            self.com_input.setText("9")   # default
+        com_layout.addWidget(self.com_input)
+        apply_com_btn = QPushButton("Apply and Restart Service")
+        apply_com_btn.clicked.connect(self.apply_com_port)
+        com_layout.addWidget(apply_com_btn, stretch=1)
+        self.layout.addLayout(com_layout)
+        self.add_separator()
+        
+    # Polling timer
+        self.status_timer = QTimer(self)
+        self.status_timer.timeout.connect(self.update_status_labels)
+        self.status_timer.start(5000)  # 5 seconds
+
+    # Initial update
+        self.update_status_labels()
+
+
+
+#### HELPER FUNCTIONS =============================================================================
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def add_separator(self):
+        """Add a clean horizontal separator line"""
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        line.setStyleSheet(f"background-color: {BORDER.name()}; max-height: 2px;")
+        self.layout.addWidget(line)
+
+    def send_command(self, payload):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            config["pending_command"] = payload
+            with open(CONFIG_FILE + ".tmp", 'w') as f:
+                json.dump(config, f, indent=2)
+            os.replace(CONFIG_FILE + ".tmp", CONFIG_FILE)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to send command:\n{e}")
+
+    def show_temp_message(self, title, text, timeout_ms=5000):
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        msg.setIcon(QMessageBox.Information)
+        msg.setStandardButtons(QMessageBox.NoButton)
+        msg.setAttribute(Qt.WA_DeleteOnClose, True)
+        msg.setModal(False)
+
+        def auto_close():
+            if msg.isVisible():
+                msg.reject()  # or msg.close() — reject is more reliable here
+        QTimer.singleShot(timeout_ms, auto_close)
+
+        msg.show()
+
+
+
+#### VERSION UPDATES ========================================================================================
+
+    def update_status_labels(self):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            status = config.get("status", {})
+
+            service_ver = status.get("service_version", "Unknown")
+            offset_raw = status.get("real_offset", "Unknown")
+            offset_warning = status.get("offset_warning", "")
+            fw = status.get("firmware_version", "Unknown")
+
+            # Service Version
+            self.service_ver_label.setText(service_ver)
+            if service_ver == "Unknown" or service_ver == "Error":
+                self.service_ver_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+            else:
+                self.service_ver_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+
+            # Offset + Offset Warning
+            if offset_raw == "Unknown" or offset_raw is None or offset_raw == "" or offset_warning != "":
+                self.offset_label.setText(str(offset_raw))
+                self.offset_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+                self.set_gauge_btn.setEnabled(False)
+                self.set_gauge_btn.setStyleSheet("color: #666666;")
+                if self._offset_raw_valid:
+                    try:
+                        self.gauge_input.returnPressed.disconnect()
+                    except TypeError:
+                        pass
+                    self._offset_raw_valid = False
+                
+                if offset_warning:
+                    self.offset_warning.setText(str(offset_warning))
+                    self.offset_warning.setStyleSheet("color: #ff4444; font-weight: bold;")
+                else:
+                    self.offset_warning.setText("")
+            else:
+                try:
+                    offset_float = float(offset_raw)
+                    self.offset_label.setText(f"{offset_float:.2f}")
+                    self.offset_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+                    self.offset_warning.setText("")   # clear warning when offset is good
+                    self.set_gauge_btn.setEnabled(True)
+                    self.set_gauge_btn.setStyleSheet("")
+                    if not self._offset_raw_valid:
+                        self.gauge_input.returnPressed.connect(self.send_gauge_offset)
+                        self._offset_raw_valid = True
+                except (ValueError, TypeError):
+                    self.offset_label.setText("Error")
+                    self.offset_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+                    self.offset_warning.setText("")
+                    self.set_gauge_btn.setEnabled(False)
+                    self.set_gauge_btn.setStyleSheet("color: #666666;")
+                    if self._offset_raw_valid:
+                        try:
+                            self.gauge_input.returnPressed.disconnect()
+                        except TypeError:
+                            pass
+                        self._offset_raw_valid = False
+
+            # Firmware Version
+            self.fw_label.setText(fw)
+            if fw == "Unknown" or fw == "Error":
+                self.fw_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+            else:
+                self.fw_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+
+            self.update_firmware_warning(fw)
+            self.update_service_status()
+
+        except Exception as e:
+            self.service_ver_label.setText("Error")
+            self.service_ver_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+            self.offset_label.setText("Error")
+            self.offset_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+            self.offset_warning.setText("")
+            self.fw_label.setText("Error")
+            self.fw_label.setStyleSheet("color: #ff4444; font-weight: bold;")            
+            self.fw_warning.setText("")
+            print(f"Error updating status labels: {e}")
+
+    def update_firmware_warning(self, device_fw):
+        try:
+            if device_fw == "Unknown":
+                self.fw_warning.setText("See Error Log")
+                self.fw_label.setStyleSheet("color: #ff4444; font-weight: bold;")
+                self.fw_update_btn.setEnabled(True)
+                self.fw_update_btn.setStyleSheet("")
+                return
+
+            uf2_files = [f for f in os.listdir(FIRMWARE_DIR) if f.endswith('.uf2')]
+            if not uf2_files:
+                self.show_temp_message("Firmware Error", "No .uf2 files found in HPM2_Firmware folder.")
+                self.fw_warning.setText("")
+                return
+
+            latest_file = max(uf2_files)
+            file_version = latest_file.replace('.uf2', '')
+
+            if file_version > device_fw:
+                self.fw_update_btn.setEnabled(True)
+                self.fw_update_btn.setStyleSheet("")
+                self.fw_warning.setText("New firmware is available.")
+                self.fw_label.setStyleSheet("color: #cccc00; font-weight: bold;")
+            elif file_version < device_fw:
+                self.fw_update_btn.setEnabled(True)
+                self.fw_update_btn.setStyleSheet("")
+                self.fw_warning.setText("Controller has newer firmware than HPM2_Firmware folder.")
+                self.fw_label.setStyleSheet("color: #cccc00; font-weight: bold;")
+            else:
+                self.fw_warning.setText("")
+                self.fw_label.setStyleSheet("color: #00cc00; font-weight: bold;")
+                self.fw_update_btn.setEnabled(False)
+                self.fw_update_btn.setStyleSheet("color: #666666;")
+        except:
+            self.fw_warning.setText("")
+
+
+
+#### ACTION BUTTONS ==========================================================================
+
+    def take_sample(self):
+        self.show_temp_message("Action", "Taking Sample. Wait 20 seconds...")
+        self.send_command({"type": "sample"})
+
+    def reboot_controller(self):
+        self.show_temp_message("Action", "Rebooting Controller. Wait 60 seconds...")
+        self.send_command({"type": "reboot"})
+
+    def open_terminal(self):
+        # Load COM port from JSON
+        com_port = "9"
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config_data = json.load(f)
+            com_port = config_data.get("config", {}).get("com_port", "9")
+        except:
+            pass
+
+        # Check service status
+        result = subprocess.run(['sc', 'query', 'HPM2_Service'], capture_output=True, text=True)
+        if "RUNNING" in result.stdout:
+            reply = QMessageBox.question(
+                self, "Service Running",
+                f"Terminal needs direct access to {com_port}.\nStop service now?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply == QMessageBox.No:
+                return
+            
+            try:
+                self.stop_service()
+                # Wait a bit longer for stop_service to complete before opening terminal
+                QTimer.singleShot(2000, lambda: self._open_terminal_dialog(com_port))
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to stop service:\n{e}")
+                return
+
+        # Service is already stopped
+        self.show_temp_message("Service", f"Opening direct terminal on {com_port}...", timeout_ms=2500)
+        self._open_terminal_dialog(com_port)
+
+    def _open_terminal_dialog(self, com_port):
+        """Helper to open terminal after service has stopped"""
+        terminal = TerminalDialog(com_port=com_port, baud_rate=9600, parent=self)
+        terminal.exec_()
+
+    def open_manual(self):
+        """Open a PDF file with the system's default viewer"""
+        pdf_path = os.path.join(get_base_path(), "HPM2_Software_Manual_2.pdf")
+        try:
+            if os.path.exists(pdf_path):
+                os.startfile(pdf_path)          # Windows only - opens with default app
+                # self.show_temp_message("PDF", f"Opened: {os.path.basename(pdf_path)}")
+            else:
+                QMessageBox.warning(self, "File Not Found", 
+                                  f"PDF file not found:\n{pdf_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", 
+                               f"Failed to open PDF:\n{str(e)}")
+
+    def open_error_log(self):
+        today = datetime.now().strftime('%Y%m%d')
+        log_path = os.path.join(get_base_path(), f"hpm2_app_error_{today}.log")
+        if os.path.exists(log_path):
+            os.startfile(log_path)
+        else:
+            QMessageBox.information(self, "No Log", "No error log for today yet.")
+
+
+
+#### SETTING CONTROLLER OFFSET ==========================================================================
+
+    def send_gauge_offset(self):
+        text = self.gauge_input.text().strip()
+        if not text:
+            return
+
+        # === Safety Check: Verify recent HPM2_Test_data.log file ===
+        try:
+            log_dir = os.path.join(get_base_path(), "..")
+            test_files = [f for f in os.listdir(log_dir) if f.endswith("HPM2_Test_data.log")]
+
+            if not test_files:
+                self.show_temp_message("Offset Check", "No _HPM2_Test_data.log file found.\nPlease run a new test sample first.")
+                return
+
+            # Use the most recently modified test file
+            latest_test_file = max(test_files, key=lambda f: os.path.getmtime(os.path.join(log_dir, f)))
+            file_path = os.path.join(log_dir, latest_test_file)
+
+            # Check age (must be within last 5 minutes)
+            age_seconds = time.time() - os.path.getmtime(file_path)
+
+            if age_seconds > 300:   # 5 minutes
+                self.show_temp_message("Offset Check", 
+                    "HPM2_Test_data.log is older than 5 minutes.\n"
+                    "Please take a sample first.")
+                return
+
+        except Exception as e:
+            self.show_temp_message("Offset Check", f"Error checking test data file:\n{e}")
+            return
+        # === End of safety check ===
+
+        try:
+            value = float(text)
+            self.show_temp_message("Setting Offset", "Calculating and Sending Offset. Wait 20 seconds...")
+            self.send_command({"type": "set_offset", "gauge_pressure": value})
+            self.gauge_input.clear()
+            self.manual_input.clear()
+        except ValueError:
+            QMessageBox.warning(self, "Invalid", "Gauge pressure must be a number.")
+
+    def send_manual_offset(self):
+        text = self.manual_input.text().strip()
+        if not text:
+            return
+        try:
+            value = float(text)
+            self.show_temp_message("Setting Offset", "Sending Manual Offset. Wait 20 seconds...")
+            self.send_command({"type": "set_offset", "new_offset": value})
+            self.manual_input.clear()
+            self.gauge_input.clear()
+        except ValueError:
+            QMessageBox.warning(self, "Invalid", "Manual offset must be a number.")
+
+    def send_reset_offset(self):
+        self.show_temp_message("Setting Offset", "Resetting Offset. Wait 20 seconds...")
+        self.send_command({"type": "set_offset", "new_offset": 0.00})
+        self.gauge_input.clear()
+        self.manual_input.clear()
+        self.check_and_show_offset_errors()
+
+
+
+#### FIRMWARE SECTION ===============================================================================
+
+    def update_firmware(self):
+        """Main firmware update handler"""
+        if not HAS_FIRMWARE_SUPPORT:
+            self.show_temp_message("Firmware Update", "Firmware Update not Supported")            
+            return
+        self.show_temp_message("Firmware Update", 
+                                "Starting Firmware Update...")
+
+        self.restart_service()
+        QTimer.singleShot(1500, self._continue_firmware_update)
+
+    def _continue_firmware_update(self):
+        current_version = self.fw_label.text().strip()
+        try:
+            self.previous_offset = float(self.offset_label.text().strip())
+        except:
+            self.previous_offset = 0.0
+
+        newest_uf2 = self.get_newest_uf2_file()
+        if not newest_uf2:
+            QMessageBox.warning(self, "Firmware Update", "No .uf2 files found in HPM2_Firmware folder.")
+            return
+
+        new_filename = os.path.basename(newest_uf2)
+
+        if new_filename.replace('.uf2', '').strip() == current_version.replace('.uf2', '').strip():
+            QMessageBox.information(self, "Firmware Update", 
+                                    f"Firmware is already up-to-date.\nCurrent: {current_version}")
+            return
+        elif new_filename.replace('.uf2', '').strip() <= current_version.replace('.uf2', '').strip():
+            reply = QMessageBox.question(
+                self, "Firmware Update",
+                f"Firmware in HPM2_Firmware folder is older than what's on controller. \ncurrent version: {current_version}\nnew verison: {new_filename}\nUpdate anyway?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply == QMessageBox.No:
+                return       
+
+        self.show_firmware_instructions(newest_uf2)
+
+    def get_newest_uf2_file(self):
+        try:
+            uf2_files = [f for f in os.listdir(FIRMWARE_DIR) if f.lower().endswith('.uf2')]
+            if not uf2_files:
+                return None
+            newest = max(uf2_files, key=lambda f: os.path.getmtime(os.path.join(FIRMWARE_DIR, f)))
+            return os.path.join(FIRMWARE_DIR, newest)
+        except:
+            return None
+
+    def show_firmware_instructions(self, uf2_path):
+        self.new_uf2_path = uf2_path
+        self.firmware_update_in_progress = True
+
+        # Start polling immediately
+        self.drive_poll_timer = QTimer(self)
+        self.drive_poll_timer.timeout.connect(self.check_for_metroboot)
+        self.drive_poll_timer.start(800)
+
+        instructions = (
+            "Firmware Update Instructions:\n\n"
+            "1. Connect the controller to this computer using a USB-C cable.\n"
+            "2. Locate the reset button on the controller (see picture).\n"
+            "    (Note: Old controller's have reset1 pins instead of a reset button.)\n"
+            "3. Quickly double-click the reset button. \n"
+            "    (for reset1 pins, short the pins twice in quick succession to simiulate a double click.)\n"
+        )
+
+    #    base_dir = get_base_path()
+        # Robust image path for both normal run and PyInstaller .exe
+        if getattr(sys, 'frozen', False):
+            # Running as compiled exe
+            base_dir = sys._MEIPASS
+        else:
+            # Running as Python script
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        image_path = os.path.join(base_dir, "images", "reset_button.jpg")
+
+        self.instructions_dialog = FirmwareUpdateDialog(self, instructions, image_path)
+        
+        # Connect finished signal to clean up timer if dialog is closed (Cancel or X)
+        self.instructions_dialog.finished.connect(self._on_instructions_closed)
+        
+        self.instructions_dialog.exec_()
+
+    def _on_instructions_closed(self):
+        """Stop polling if user closes or cancels the dialog"""
+        if hasattr(self, 'drive_poll_timer'):
+            self.drive_poll_timer.stop()
+        self.firmware_update_in_progress = False
+
+    def check_for_metroboot(self):
+        if not getattr(self, 'firmware_update_in_progress', False):
+            return
+
+        metroboot_path = self.find_metroboot_drive()
+        if metroboot_path:
+            self.drive_poll_timer.stop()
+            
+            # Automatically close the instructions dialog
+            if hasattr(self, 'instructions_dialog') and self.instructions_dialog.isVisible():
+                self.instructions_dialog.accept()
+            self.perform_firmware_copy(metroboot_path)
+
+    def find_metroboot_drive(self):
+
+        for part in psutil.disk_partitions():
+            if 'removable' in part.opts.lower() and part.mountpoint:
+                try:
+                    label = win32api.GetVolumeInformation(part.mountpoint)[0]
+                    if label and 'METROBOOT' in label.upper():
+                        return part.mountpoint
+                except:
+                    pass
+        return None
+
+    def perform_firmware_copy(self, drive_path):
+        try:
+            dest = os.path.join(drive_path, os.path.basename(self.new_uf2_path))
+            shutil.copy2(self.new_uf2_path, dest)
+
+            self.show_temp_message("Copy Complete", 
+                                    "Firmware copied.\nWaiting for flash to complete (~10 seconds)...", timeout_ms=10000)
+
+            QTimer.singleShot(10000, self.finish_firmware_update)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to copy firmware:\n{str(e)}")
+            self.firmware_update_in_progress = False
+
+    def finish_firmware_update(self):
+        newest_uf2 = self.get_newest_uf2_file()
+        new_version = os.path.basename(newest_uf2)
+        value = self.previous_offset
+        if abs(self.previous_offset) > 0:
+            self.send_command({"type": "set_offset", "new_offset": value})
+            self.check_and_show_offset_errors()
+            QTimer.singleShot(7000, self.restart_service)
+            QMessageBox.information(self, "Success", 
+                f"Firmware successfully updated to {new_version}.\nAn Offset of {value} was re-applied.\nWait 2 minutes before trying anything else.")
+        else:
+            QTimer.singleShot(3000, self.restart_service)
+            QMessageBox.information(self, "Success", 
+                f"Firmware successfully updated to {new_version}.\nWait 2 minutes before trying anything else.")
+        
+        self.firmware_update_in_progress = False
+
+
+
+#### SERVICE CONTROLS =============================================================================================
+
+    def update_service_status(self):
+        # Do not overwrite temporary status messages
+        current_text = self.service_status.text().strip()
+        if current_text in ("Starting...", "Stopping...", "Restarting..."):
+            return
+
+        try:
+            result = subprocess.run(['sc', 'query', 'HPM2_Service'], 
+                                  capture_output=True, 
+                                  text=True, 
+                                  creationflags=subprocess.CREATE_NO_WINDOW)
+
+            if "RUNNING" in result.stdout.upper():
+                self.service_status.setText("RUNNING")
+                self.service_status.setStyleSheet("color: #00cc00; font-weight: bold;")
+            elif "STOPPED" in result.stdout.upper():
+                self.service_status.setText("STOPPED")
+                self.service_status.setStyleSheet("color: #ff4444; font-weight: bold;")
+            else:
+                self.service_status.setText("UNKNOWN")
+                self.service_status.setStyleSheet("color: #ffff00;")
+
+        except Exception as e:
+            self.service_status.setText("ERROR")
+            self.service_status.setStyleSheet("color: #ff4444; font-weight: bold;")
+            print(f"Service check failed: {e}")
+
+    def force_update_service_status(self):
+        """Force update status - used after start/stop/restart operations"""
+        try:
+            result = subprocess.run(['sc', 'query', 'HPM2_Service'], 
+                                  capture_output=True, 
+                                  text=True, 
+                                  creationflags=subprocess.CREATE_NO_WINDOW)
+
+            if "RUNNING" in result.stdout.upper():
+                self.service_status.setText("RUNNING")
+                self.service_status.setStyleSheet("color: #00cc00; font-weight: bold;")
+            elif "STOPPED" in result.stdout.upper():
+                self.service_status.setText("STOPPED")
+                self.service_status.setStyleSheet("color: #ff4444; font-weight: bold;")
+            else:
+                self.service_status.setText("UNKNOWN")
+                self.service_status.setStyleSheet("color: #ffff00;")
+
+        except Exception as e:
+            self.service_status.setText("ERROR")
+            self.service_status.setStyleSheet("color: #ff4444; font-weight: bold;")
+            print(f"Service check failed: {e}")            
+
+    def start_service(self):
+        """Start the HPM2_Service with proper UI feedback"""
+        self.service_status.setText("Starting...")
+        self.service_status.setStyleSheet("color: #ffff00; font-weight: bold;")
+
+        # Use QTimer to let the UI update before running blocking subprocess calls
+        QTimer.singleShot(1000, self._perform_start) 
+
+    def _perform_start(self):
+        result = subprocess.run(['sc', 'query', 'HPM2_Service'], capture_output=True, text=True)
+        if "RUNNING" in result.stdout:
+            self.show_temp_message("Service", "Service is already running.", timeout_ms=2500)
+            self.service_status.setText("RUNNING")
+            self.service_status.setStyleSheet("color: #00cc00; font-weight: bold;")            
+            return
+        try:
+            subprocess.run(['net', 'start', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            self.force_update_service_status()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to start service:\n{e}")
+
+    def stop_service(self):
+        """Stop the HPM2_Service with proper UI feedback"""
+        self.service_status.setText("Stopping...")
+        self.service_status.setStyleSheet("color: #ffff00; font-weight: bold;")
+
+        # Use QTimer to let the UI update before running blocking subprocess calls
+        QTimer.singleShot(1000, self._perform_stop)
+
+    def _perform_stop(self):
+        result = subprocess.run(['sc', 'query', 'HPM2_Service'], capture_output=True, text=True)
+        if "STOPPED" in result.stdout or "not running" in result.stdout.lower():
+            self.show_temp_message("Service", "Service is already stopped.", timeout_ms=2500)
+            self.service_status.setText("STOPPED")
+            self.service_status.setStyleSheet("color: #ff4444; font-weight: bold;")            
+            return
+        try:
+            subprocess.run(['net', 'stop', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            self.force_update_service_status() 
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to stop service:\n{e}")
+
+    def restart_service(self):
+        """Restart the HPM2_Service with proper UI feedback"""
+        # Immediately show "Restarting..." status
+        self.service_status.setText("Restarting...")
+        self.service_status.setStyleSheet("color: #ffff00; font-weight: bold;")
+
+        # Use QTimer to let the UI update before running blocking subprocess calls
+        QTimer.singleShot(1000, self._perform_restart)
+
+    def _perform_restart(self):
+        result = subprocess.run(['sc', 'query', 'HPM2_Service'], capture_output=True, text=True)
+        if "RUNNING" not in result.stdout:
+            try:
+                subprocess.run(['net', 'start', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                self.update_service_status() 
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed:\n{e}")
+            return
+
+        try:
+            subprocess.run(['net', 'stop', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW, timeout=15)
+            time.sleep(2)
+            subprocess.run(['net', 'start', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+            QTimer.singleShot(2000, self.force_update_service_status)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to restart service:\n{e}")
+        
+
+
+#### COM PORT SETTING =====================================================================================
+
+    def apply_com_port(self):
+        new_port = self.com_input.text().strip()
+        if not new_port:
+            QMessageBox.warning(self, "Invalid", "Enter a COM port (e.g. 9)")
+            return
+
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            if "config" not in config:
+                config["config"] = {}
+            config["config"]["com_port"] = f"COM{new_port}"
+            with open(CONFIG_FILE + ".tmp", 'w') as f:
+                json.dump(config, f, indent=2)
+            os.replace(CONFIG_FILE + ".tmp", CONFIG_FILE)
+
+    #        QMessageBox.information(
+    #            self, "Updated",
+    #            f"COM port set to {new_port}.\n\n"
+    #            "Note: Changes may require rebooting the computer to take effect."
+    #        )
+            self.restart_service()  # optional: auto-restart
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to update COM port:\n{e}")
+
+
+
+
+
+class FirmwareUpdateDialog(QDialog):
+    def __init__(self, parent, instructions_text, image_path):
+        super().__init__(parent)
+        self.setWindowTitle("Firmware Update Instructions")
+        self.setStyleSheet(f"background-color: {DARK_BG.name()}; color: {TEXT_COLOR.name()};")
+        self.setMinimumWidth(580)
+
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        instr_label = QLabel(instructions_text)
+        instr_label.setWordWrap(True)
+        instr_label.setStyleSheet("font-size: 14px;")
+        layout.addWidget(instr_label)
+
+        if os.path.exists(image_path):
+            pixmap = QPixmap(image_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(520, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                img_label = QLabel()
+                img_label.setPixmap(pixmap)
+                img_label.setAlignment(Qt.AlignCenter)
+                layout.addWidget(img_label)
+
+        # Button layout with Cancel
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(cancel_btn)
+
+        self.setLayout(layout)
+        layout.addLayout(btn_layout)
+
+
+
+
+
+class TerminalDialog(QDialog):
+    def __init__(self, com_port="COM9", baud_rate=9600, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Direct Terminal (Service Stopped)")
+        self.setGeometry(200, 200, 900, 700)
+        self.setStyleSheet(f"background-color: {DARK_BG.name()}; color: {TEXT_COLOR.name()};")
+
+        self.com_port = com_port
+        self.baud_rate = baud_rate
+        self.ser = None
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
+        # Help label at the top (same text, grey color like before)
+        help_label = QLabel("Hit ? then Enter for controller help menu")
+        help_label.setStyleSheet("color: #cccc00; font-family: Consolas; font-size: 10pt;")
+        help_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(help_label)
+
+        # RX display
+        self.rx_display = QTextEdit()
+        self.rx_display.setReadOnly(True)
+        self.rx_display.setStyleSheet(f"""
+            background-color: #1e1e1e;
+            color: #c8c8c8;
+            font-family: Consolas;
+            font-size: 12pt;
+            border: 1px solid #505050;
+        """)
+        layout.addWidget(self.rx_display)
+
+        # Input area
+        input_layout = QHBoxLayout()
+        self.tx_input = QLineEdit()
+        self.tx_input.setPlaceholderText("Type command and press Enter...")
+        self.tx_input.setStyleSheet(f"""
+            background-color: #282828;
+            color: #c8c8c8;
+            font-family: Consolas;
+            font-size: 12pt;
+            padding: 6px;
+            border: 1px solid #505050;
+        """)
+        self.tx_input.returnPressed.connect(self.send_command)
+        input_layout.addWidget(self.tx_input)
+
+        send_btn = QPushButton("Send")
+        send_btn.setStyleSheet(f"background-color: #282828; color: #c8c8c8; padding: 6px;")
+        send_btn.clicked.connect(self.send_command)
+        input_layout.addWidget(send_btn)
+
+        layout.addLayout(input_layout)
         self.setLayout(layout)
 
-    def set_offset(self):
-        # This will be used in the future to set the offset in the microcontroller. 
-        return
+        # Read timer
+        self.read_timer = QTimer(self)
+        self.read_timer.timeout.connect(self.read_serial)
+        self.read_timer.start(100)
+
+        self.open_serial()
+        self.tx_input.setFocus()
+
+    def open_serial(self):
+        try:
+            self.ser = serial.Serial(self.com_port, self.baud_rate, timeout=1)
+            self.rx_display.append(f"Connected to {self.com_port} at {self.baud_rate} baud")
+        except Exception as e:
+            QMessageBox.critical(self, "Serial Error", f"Failed to open {self.com_port}:\n{e}")
+            self.reject()
+
+    def send_command(self):
+        cmd = self.tx_input.text().strip()
+        if not cmd or not self.ser or not self.ser.is_open:
+            return
+
+        try:
+            self.ser.write((cmd + '\r\n').encode())
+            self.ser.flush()
+            self.rx_display.append(f"TX> {cmd}")
+            self.rx_display.moveCursor(QTextCursor.End)
+        except Exception as e:
+            self.rx_display.append(f"Send error: {e}")
+
+        self.tx_input.clear()
+
+    def read_serial(self):
+        if not self.ser or not self.ser.is_open:
+            return
+
+        try:
+            if self.ser.in_waiting:
+                line = self.ser.readline().decode('ascii', errors='ignore').rstrip()
+                self.rx_display.append(f"RX: {line}")
+                self.rx_display.moveCursor(QTextCursor.End)
+        except Exception as e:
+            self.rx_display.append(f"Read error: {e}")
+
+    def show_temp_message(self, title, text, timeout_ms=2500):
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setText(text)
+        msg.setIcon(QMessageBox.Information)
+        msg.setStandardButtons(QMessageBox.NoButton)
+        msg.setAttribute(Qt.WA_DeleteOnClose, True)
+        msg.setModal(False)
+
+        def auto_close():
+            if msg.isVisible():
+                msg.reject()  # or msg.close() — reject is more reliable here
+        QTimer.singleShot(timeout_ms, auto_close)
+
+        msg.show()
+
+    def closeEvent(self, event):
+        reply = QMessageBox.question(
+            self, "Restart Service",
+            "Restart the service now?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
+        )
+
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+
+        if reply == QMessageBox.Yes:
+#            try:
+#                subprocess.run(['net', 'start', 'HPM2_Service'], check=True, timeout=15)
+#                QMessageBox.information(self, "Restarted", "Service restarted.")
+#            except Exception as e:
+#                QMessageBox.warning(self, "Restart Failed", f"Could not restart:\n{e}")
+            result = subprocess.run(['sc', 'query', 'HPM2_Service'], capture_output=True, text=True)
+            if "RUNNING" in result.stdout:
+                self.show_temp_message("Service", "Service is already running.")
+                return
+            try:
+                subprocess.run(['net', 'start', 'HPM2_Service'], check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                self.show_temp_message("Service", "Service is starting...")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to start service:\n{e}")                
+
+        event.accept()
+
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -259,8 +1303,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(0, 0, 1200, 800)
         self.setMinimumSize(800, 600)
         self.setStyleSheet(f"background-color: {DARK_BG.name()}; color: {TEXT_COLOR.name()};")
-        self.offset = 0.0
-        self.errors = "None"
+        self.errors = "n/a"
         self.start_date = None
         self.end_date = None     
         self.selected_sid = None
@@ -291,7 +1334,6 @@ class MainWindow(QMainWindow):
         self.pressure_pixel_cache = []   # list of (px_x, px_y, df_idx, series_key)
         self.water_pixel_cache = []      
 
-
         # Define semi-transparent cursor (global or in __init__)
         pixmap = QPixmap(32, 32)
         pixmap.fill(Qt.transparent)
@@ -300,7 +1342,9 @@ class MainWindow(QMainWindow):
         painter.drawEllipse(0, 0, 10, 10)  # Small circle
         painter.end()
         self.transparent_cursor = QCursor(pixmap)
-
+        # Bold Font for graph ticks
+        bold_font = QFont()
+        bold_font.setBold(True)
         # Set up main widget and layout
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
@@ -311,7 +1355,7 @@ class MainWindow(QMainWindow):
         # Create top control layout
         top_control_layout = QHBoxLayout()
         top_control_layout.setContentsMargins(30, 10, 0, 0)
-        settings_btn = QPushButton("Settings")
+        settings_btn = QPushButton("Tools")
         settings_btn.setStyleSheet(f"background-color: {FRAME_BG.name()}; color: {TEXT_COLOR.name()};")
         settings_btn.clicked.connect(self.open_settings)
         top_control_layout.addWidget(settings_btn)
@@ -380,7 +1424,7 @@ class MainWindow(QMainWindow):
         self.fullscreen_layout.setContentsMargins(0, 10, 0, 0)
         self.fullscreen_layout.setSpacing(30)
         self.columns_widget = QWidget()
-        self.columns_widget.setFixedHeight(135)
+        self.columns_widget.setFixedHeight(140)
         self.columns_layout = QHBoxLayout()
         self.columns_layout.setContentsMargins(0, 0, 0, 0)
         self.columns_layout.setSpacing(30)
@@ -495,6 +1539,7 @@ class MainWindow(QMainWindow):
         self.pressure_plot.getAxis('bottom').setTextPen(TEXT_COLOR)
         self.pressure_plot.getAxis('left').setTextPen(TEXT_COLOR)
         self.pressure_plot.getAxis('bottom').setTickSpacing(major=86400, minor=3600)
+        self.pressure_plot.getAxis('bottom').setTickFont(bold_font)
         pressure_layout.addWidget(self.pressure_plot)
         self.pressure_section.setLayout(pressure_layout)
         main_layout.addWidget(self.pressure_section)
@@ -539,6 +1584,7 @@ class MainWindow(QMainWindow):
         self.water_plot.getAxis('bottom').setTextPen(TEXT_COLOR)
         self.water_plot.getAxis('left').setTextPen(TEXT_COLOR)
         self.water_plot.getAxis('bottom').setTickSpacing(major=86400, minor=3600)
+        self.water_plot.getAxis('bottom').setTickFont(bold_font)
         water_layout.addWidget(self.water_plot)
         self.water_section.setLayout(water_layout)
         main_layout.addWidget(self.water_section)
@@ -632,21 +1678,44 @@ class MainWindow(QMainWindow):
                         self.subfolder_search_cb.setChecked(True)
                     elif rec_value in ("false", "0", "no", "off"):
                         self.subfolder_search_cb.setChecked(False)
+                   
+
 
         # Load initial methods  
 # <==== LOADING NEW SIDS CALLS ON_SID_CHANGED WHICH CALLS UPDATE_DATE_RANGE WHICH THEN CALLS UPDATE_DATA
 #        print("STARTING: load_sids in init which will eventually call update_data.")
         self.load_sids()
-#        self.update_data() # This isn't needed because it is called from load_sids()
 
         # Set up timer for periodic updates
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_data)
         self.timer.start(5000)  # 5-second interval
-#        print ("DON'T FORGET YOU STOPPED THE REFRESH TIMER <==========================================")
+        
         # Check and clear log file if older than today
         self.clear_log_if_needed()  
+        self.set_end_to_today()
+        QTimer.singleShot(200, self.reset_zoom) # <=== Needed to delay it a little to allow for graph to render
 
+        if len(sys.argv) > 1:
+            for i in range(1, len(sys.argv)):
+                arg = sys.argv[i]
+                if arg == "use_current_dat":
+                    sid = self.get_current_dat_sid()
+                    index = self.sid_combo.findText(sid)
+                    if index != -1:
+                        self.sid_combo.setCurrentIndex(index)
+                    else:
+                        # Optional: Handle if SID not in list (e.g., add it or log a warning)
+                        print(f"Current_dat SID {sid} not found in combo box options.")
+                elif arg.startswith("SID="):
+                    sid = arg[4:].strip('"').strip("'")
+                    index = self.sid_combo.findText(sid)
+                    if index != -1:
+                        self.sid_combo.setCurrentIndex(index)
+                    else:
+                        print(f"arg SID=,  SID {sid} not found in combo box options.")
+      
+        """
         if len(sys.argv) > 1 and sys.argv[1] == "use_current_dat":
             sid = self.get_current_dat_sid()
             index = self.sid_combo.findText(sid)
@@ -655,9 +1724,11 @@ class MainWindow(QMainWindow):
             else:
                 # Optional: Handle if SID not in list (e.g., add it or log a warning)
                 print(f"SID {sid} not found in combo box options.")
+        """
 
 
 ####  ================ INITIAL LOAD HELPERS ==================================================
+
 
     def _update_caches(self):
         self.update_pressure_pixel_cache()
@@ -720,24 +1791,20 @@ class MainWindow(QMainWindow):
         start_time = time.time()
         self.compile_log_folders()
         log_files = []
-        pattern = "*_*_HPM2_Test_data.log"
+        pattern_new = "*_*_HPM2_Test_data.log"          # existing
+        pattern_old = "*_*_HPM2_BTrdr2_test_data.txt"   # new
         for entry in self.all_log_folders:
             folder = entry["path"]
             recursive = entry.get("recursive", False)
             if not os.path.exists(folder):
                 continue
-            if recursive:
-                # "**" only works with recursive=True
-                search_pattern = os.path.join(folder, "**", pattern)
-                matches = glob.glob(search_pattern, recursive=True)
-            else:
-                search_pattern = os.path.join(folder, pattern)
-                matches = glob.glob(search_pattern)
-            log_files.extend(matches)
+            matches_new = glob.glob(os.path.join(folder, "**", pattern_new), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_new))
+            matches_old = glob.glob(os.path.join(folder, "**", pattern_old), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_old))
+            log_files.extend(matches_new + matches_old)
 
         sids = set()
         for log_file in log_files:
-            match = re.match(r"(.+?)_\d{8}_[A-Za-z]+_HPM2_Test_data\.log", os.path.basename(log_file))
+            match = re.match(r"^(\d+)_\d{8}", os.path.basename(log_file))
             if match:
                 sids.add(match.group(1))
         self.sid_list = sorted(sids, key=int)
@@ -778,9 +1845,9 @@ class MainWindow(QMainWindow):
 
 
     def open_settings(self):
-        dialog = SettingsDialog(self.offset, self)
-        if dialog.exec_():
-            self.offset = dialog.get_offset()
+        dialog = SettingsDialog(self)
+        dialog.exec_()
+
 
 
     def open_log_folder(self):
@@ -795,8 +1862,9 @@ class MainWindow(QMainWindow):
 
 
 
-#### ======== APP LAYOUT HELPER FUNCTIONS ========================================================
 
+#### ======== APP LAYOUT HELPER FUNCTIONS ========================================================
+    
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if self.is_fullscreen:
@@ -804,7 +1872,14 @@ class MainWindow(QMainWindow):
             gauge_width = max(400, min(int(window_size.width() * 0.95), window_size.width() - 40))
             gauge_height = max(200, min(int((window_size.height() - 240) * 0.8), window_size.height() - 240))
             self.fullscreen_gauge.setMinimumSize(gauge_width, gauge_height)
+        
+        # Debounce cache update - safe version
+        if hasattr(self, '_resize_timer') and self._resize_timer is not None:
+            self._resize_timer.stop()
 
+        # Schedule cache update shortly after user stops resizing
+        self._resize_timer = QTimer.singleShot(80, self._update_caches)           
+        
 
     def handle_plot_double_click(self, section, event):
         if event.button() == Qt.LeftButton:
@@ -1060,15 +2135,23 @@ class MainWindow(QMainWindow):
                         x_data, y_data = line.getData()
                         if x_data is not None:
                             line.setData(x=x_data, y=y_data, symbolSize=2.5)
+                    tooltip = [f"<span style='color:{SOFT_GRAY.name()};'>Time: {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}</span>"]
+
                     
-                    tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+                #    tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+                    row = df.iloc[new_idx].to_dict()
+                    colors = self.get_alert_colors_for_row(row)
+
                     for key, line in self.pressure_lines.items():
                         if line.isVisible() and self.pressure_checks[key].isChecked():
                             value = df[key].iloc[new_idx]
                             if pd.isna(value):
                                 continue
                             unit = 'psi'
-                            tooltip.append(f"{line.name()+':':<21} {value:>6.2f} {unit}")
+                            color = colors.get(key, TEXT_COLOR.name())
+                            tooltip.append(
+                                f"<br><span style='color:{color};'>{line.name()+':':<21} {value:>6.2f} {unit}</span>"
+                            )
                             x_data, y_data = line.getData()
                             if x_data is not None and new_idx < len(df):
                                 sizes = [2.5] * len(x_data)
@@ -1077,7 +2160,22 @@ class MainWindow(QMainWindow):
                                     sizes[local_idx] = 10 # Size of highlighted mouse move point.
                                     line.setData(x=x_data, y=y_data, symbolSize=sizes)
                     
-                    tooltip_text = "\n".join(tooltip)
+#                    # This displays one error or the total number of errors.  
+#                    if colors['pressure_error_text'] != 'No pressure errors':
+#                        tooltip.append(
+#                            f"<br><span style='color:{colors['pressure_errors']};'>Errors: {colors['pressure_error_text']}</span>"
+#                        )
+                    # DISPLAYS FULL LIST OF ERRORS
+                    # Pressure warnings (yellow)
+                    for msg in colors.get('pressure_warning_list', []):
+                        tooltip.append(f"<br><span style='color:yellow;'>• {msg}</span>")
+
+                    # Pressure errors/critical (red)
+                    for msg in colors.get('pressure_error_list', []):
+                        tooltip.append(f"<br><span style='color:red;'>• {msg}</span>")
+
+                    tooltip_text = "".join(tooltip)
+
                     self.pressure_tooltip.show_at(tooltip_pos, tooltip_text)
                 else:
                     self.pressure_tooltip.hide()
@@ -1157,25 +2255,48 @@ class MainWindow(QMainWindow):
                         x_data, y_data = line.getData()
                         if x_data is not None:
                             line.setData(x=x_data, y=y_data, symbolSize=2.5)
+
+                    tooltip = [f"<span style='color:{SOFT_GRAY.name()};'>Time: {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}</span>"]
+
                     
-                    tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+                #    tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[new_idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+                    row = df.iloc[new_idx].to_dict()
+                    colors = self.get_alert_colors_for_row(row)
+
                     for key, line in self.water_lines.items():
                         if line.isVisible() and self.water_checks[key].isChecked():
                             value = df[key].iloc[new_idx]
                             if pd.isna(value):
                                 continue
                             unit = '°F'
-                            tooltip.append(f"{line.name()+':':<21} {value:>6.2f} {unit}")
-                            
+                            color = colors.get(key, TEXT_COLOR.name())
+                            tooltip.append(
+                                f"<br><span style='color:{color};'>{line.name()+':':<21} {value:>6.2f} {unit}</span>"
+                            )
                             x_data, y_data = line.getData()
                             if x_data is not None and new_idx < len(df):
                                 sizes = [2.5] * len(x_data)
                                 local_idx = np.where((df[key].notna()) & (df.index <= new_idx))[0][-1]
                                 if local_idx < len(x_data):
-                                    sizes[local_idx] = 10 # Size of highlighted mouse move point.
+                                    sizes[local_idx] = 10  # Size of highlighted mouse move point.
                                     line.setData(x=x_data, y=y_data, symbolSize=sizes)
-                    
-                    tooltip_text = "\n".join(tooltip)
+
+#                    # This displays one error or the total number of errors.    
+#                    if colors['water_error_text'] != 'No water errors':
+#                        tooltip.append(
+#                            f"<br><span style='color:{colors['water_errors']};'>Errors: {colors['water_error_text']}</span>"
+#                        )
+                    # DISPLAYS FULL LIST OF ERRORS
+                    # Water warnings (yellow)
+                    for msg in colors.get('water_warning_list', []):
+                        tooltip.append(f"<br><span style='color:yellow;'>• {msg}</span>")
+
+                    # Water errors/critical (red)
+                    for msg in colors.get('water_error_list', []):
+                        tooltip.append(f"<br><span style='color:red;'>• {msg}</span>")
+
+                    tooltip_text = "".join(tooltip)
+
                     self.water_tooltip.show_at(tooltip_pos, tooltip_text)
                 else:
                     self.water_tooltip.hide()
@@ -1189,6 +2310,7 @@ class MainWindow(QMainWindow):
 ## PIXEL CACHE SECTION ----------------------------------------------------------
 # Using precomputed pixel cache for hover - should be very fast even with months of data
     def update_pressure_pixel_cache(self, vb=None, range=None):
+
         if self.cached_df is None or self.cached_df.empty:
             self.pressure_pixel_cache = []
             return
@@ -1494,13 +2616,16 @@ class MainWindow(QMainWindow):
             return
         
         # Build tooltip text for all checked series, highlight selected series if keyboard nav
-        tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+        tooltip = [f"<span style=''color:{SOFT_GRAY.name()};'>Time: {df['DATE TIME'].iloc[idx].strftime('%Y-%m-%d %H:%M:%S')}</span>"]
+        row = df.iloc[idx].to_dict()
+        colors = self.get_alert_colors_for_row(row)
+
         point_y = None
         if selected_series and selected_series in df.columns:
             value = df[selected_series].iloc[idx]
             if not pd.isna(value):
                 point_y = value
-        
+
         for key, line in self.pressure_lines.items():
             x_data, y_data = line.getData()
             if x_data is not None:
@@ -1509,18 +2634,31 @@ class MainWindow(QMainWindow):
                 value = df[key].iloc[idx]
                 if not pd.isna(value):
                     unit = 'psi'
-                    tooltip.append(f"{line.name()+':':<21} {value:>6.2f} {unit}")
+                    color = colors.get(key, TEXT_COLOR.name())
+                    tooltip.append(
+                        f"<br><span style='color:{color};'>{line.name()+':':<21} {value:>6.2f} {unit}</span>"
+                    )
                     if x_data is not None and idx < len(x_data):
                         if not self.is_keyboard_nav or key == selected_series:
                             sizes = [2.5] * len(x_data)
                             sizes[idx] = 10
                             line.setData(x=x_data, y=y_data, symbolSize=sizes)
-        
-        if not tooltip[1:]:  # No series added to tooltip
-            self.pressure_tooltip.hide()
-            return
-        
-        tooltip_text = "\n".join(tooltip)
+
+#        # This displays one error or the total number of errors.  
+#        if colors['pressure_error_text'] != 'No pressure errors':
+#            tooltip.append(
+#                f"<br><span style='color:{colors['pressure_errors']};'>Errors: {colors['pressure_error_text']}</span>"
+#            )
+        # DISPLAYS FULL LIST OF ERRORS
+        # Pressure warnings (yellow)
+        for msg in colors.get('pressure_warning_list', []):
+            tooltip.append(f"<br><span style='color:yellow;'>• {msg}</span>")
+
+        # Pressure errors/critical (red)
+        for msg in colors.get('pressure_error_list', []):
+            tooltip.append(f"<br><span style='color:red;'>• {msg}</span>")
+
+        tooltip_text = "".join(tooltip)
         
         # Determine tooltip position based on point's screen position
         vb = self.pressure_plot.getViewBox()
@@ -1557,13 +2695,16 @@ class MainWindow(QMainWindow):
             return
         
         # Build tooltip text for all checked series, highlight selected series if keyboard nav
-        tooltip = [f"{'Time:'} {df['DATE TIME'].iloc[idx].strftime('%Y-%m-%d %H:%M:%S')}"]
+        tooltip = [f"<span style='color:{SOFT_GRAY.name()};'>Time: {df['DATE TIME'].iloc[idx].strftime('%Y-%m-%d %H:%M:%S')}</span>"]
+        row = df.iloc[idx].to_dict()
+        colors = self.get_alert_colors_for_row(row)
+
         point_y = None
         if selected_series and selected_series in df.columns:
             value = df[selected_series].iloc[idx]
             if not pd.isna(value):
                 point_y = value
-        
+
         for key, line in self.water_lines.items():
             x_data, y_data = line.getData()
             if x_data is not None:
@@ -1572,18 +2713,31 @@ class MainWindow(QMainWindow):
                 value = df[key].iloc[idx]
                 if not pd.isna(value):
                     unit = '°F'
-                    tooltip.append(f"{line.name()+':':<21} {value:>6.2f} {unit}")
+                    color = colors.get(key, TEXT_COLOR.name())
+                    tooltip.append(
+                        f"<br><span style='color:{color};'>{line.name()+':':<21} {value:>6.2f} {unit}</span>"
+                    )
                     if x_data is not None and idx < len(x_data):
                         if not self.is_keyboard_nav or key == selected_series:
                             sizes = [2.5] * len(x_data)
                             sizes[idx] = 10
                             line.setData(x=x_data, y=y_data, symbolSize=sizes)
-        
-        if not tooltip[1:]:  # No series added to tooltip
-            self.water_tooltip.hide()
-            return
-        
-        tooltip_text = "\n".join(tooltip)
+
+#        # This displays one error or the total number of errors.    
+#        if colors['water_error_text'] != 'No water errors':
+#            tooltip.append(
+#                f"<br><span style='color:{colors['water_errors']};'>Errors: {colors['water_error_text']}</span>"
+#            )
+        # DISPLAYS FULL LIST OF ERRORS
+        # Water warnings (yellow)
+        for msg in colors.get('water_warning_list', []):
+            tooltip.append(f"<br><span style='color:yellow;'>• {msg}</span>")
+
+        # Water errors/critical (red)
+        for msg in colors.get('water_error_list', []):
+            tooltip.append(f"<br><span style='color:red;'>• {msg}</span>")
+
+        tooltip_text = "".join(tooltip)
         
         # Determine tooltip position based on point's screen position
         vb = self.water_plot.getViewBox()
@@ -1846,8 +3000,186 @@ class MainWindow(QMainWindow):
 #        print(f"[update_date_range]: \nSet range to: {self.start_date} - {self.end_date}, \n control bar: {self.start_date_edit.date().toPyDate()} - {self.end_date_edit.date().toPyDate()}")
 #        print("\n    update_date_range - CALLING: update_data")
         self.update_data()
+        QTimer.singleShot(100, self.reset_zoom)
+
+
+
+#### -- ALERTING HELPER FUNCTIONS--------------------------------------------------------------------------------------------------------------------
 
         
+    def get_alert_colors_for_row(self, row):
+        """
+        Takes a single row (dict from latest_df.iloc[-1]) and returns colors for display.
+        - Uses lighter green for safe values
+        - Yellow for warnings, red for critical errors
+        - Separate warning/error lists for tooltips
+        """
+        colors = {
+            'mag_psi': TEXT_COLOR.name(),
+            'avg_mag_psi': TEXT_COLOR.name(),
+            'water_diff': TEXT_COLOR.name(),
+            'water_in_f': TEXT_COLOR.name(),
+            'water_out_f': TEXT_COLOR.name(),
+            'wika_psi': TEXT_COLOR.name(),
+            'atm_psi': TEXT_COLOR.name(),
+            'errors': TEXT_COLOR.name(),
+            'error_text': 'No errors',
+            'pressure_warning_list': [],
+            'pressure_error_list': [],
+            'water_warning_list': [],
+            'water_error_list': []
+        }
+
+        errors = []
+        pressure_warnings = []
+        pressure_errors = []
+        water_warnings = []
+        water_errors = []
+
+        # ── Detect defective states first (for suppression) ──────────────────
+        wika_defective = False
+        atm_defective = False
+        water_in_defective = False
+        water_out_defective = False
+
+        wika = row.get('wika_psi', None)
+        if wika is not None:
+            if wika < 10 or wika > 23.3:
+                colors['wika_psi'] = CRITICAL_RED.name()
+                errors.append("DEFECTIVE WIKA SENSOR")
+                pressure_errors.append("DEFECTIVE WIKA SENSOR")
+                wika_defective = True
+            else:
+                colors['wika_psi'] = LIGHT_GREEN.name()
+
+        atm = row.get('atm_psi', None)
+        if atm is not None:
+            if atm < 10 or atm > 23.3:
+                colors['atm_psi'] = CRITICAL_RED.name()
+                errors.append("DEFECTIVE ATM. SENSOR")
+                pressure_errors.append("DEFECTIVE ATM. SENSOR")
+                atm_defective = True
+            else:
+                colors['atm_psi'] = LIGHT_GREEN.name()
+
+        win = row.get('water_in_f', None)
+        if win is not None:
+            if win <= -147:
+                colors['water_in_f'] = CRITICAL_RED.name()
+                errors.append("DEFECTIVE WATER IN PROBE")
+                water_errors.append("DEFECTIVE WATER IN PROBE")
+                water_in_defective = True
+            elif win < 55:
+                colors['water_in_f'] = WARNING_YELLOW.name()
+                msg = "WATER TEMP IN WARNING <55F"
+                errors.append(msg)
+                water_warnings.append(msg)
+            elif win > 80:
+                colors['water_in_f'] = WARNING_YELLOW.name()
+                msg = "WATER TEMP IN WARNING >80F"
+                errors.append(msg)
+                water_warnings.append(msg)
+            else:
+                colors['water_in_f'] = LIGHT_GREEN.name()
+
+        wout = row.get('water_out_f', None)
+        if wout is not None:
+            if wout <= -147:
+                colors['water_out_f'] = CRITICAL_RED.name()
+                errors.append("DEFECTIVE WATER OUT PROBE")
+                water_errors.append("DEFECTIVE WATER OUT PROBE")
+                water_out_defective = True
+            elif wout < 57:
+                colors['water_out_f'] = WARNING_YELLOW.name()
+                msg = "WATER TEMP OUT WARNING <57F"
+                errors.append(msg)
+                water_warnings.append(msg)
+            elif wout > 105:
+                colors['water_out_f'] = WARNING_YELLOW.name()
+                msg = "WATER TEMP OUT WARNING >105F"
+                errors.append(msg)
+                water_warnings.append(msg)
+            else:
+                colors['water_out_f'] = LIGHT_GREEN.name()
+
+        pressure_sensor_defective = wika_defective or atm_defective
+        water_probe_defective = water_in_defective or water_out_defective
+
+        # ── Magnet / Helium pressure ────────────────────────────────────────
+        mag = row.get('mag_psi', None)
+        if mag is not None:
+            if pressure_sensor_defective:
+                colors['mag_psi'] = TEXT_COLOR.name()
+            else:
+                if mag > 1.75 or mag < 0.0:
+                    colors['mag_psi'] = CRITICAL_RED.name()
+                    msg = "MAGNET QUENCH" if mag > 1.75 else "POSSIBLE QUENCH"
+                    errors.append(msg)
+                    pressure_errors.append(msg)
+                elif mag >= 0.3 and mag <= 0.6:
+                    colors['mag_psi'] = LIGHT_GREEN.name()
+                else:
+                    colors['mag_psi'] = WARNING_YELLOW.name()
+                    if mag < 0.3:
+                        msg = "MAGNET PRESSURE LOW WARNING <0.3psi"
+                        errors.append(msg)
+                        pressure_warnings.append(msg)
+                    elif mag > 0.6:
+                        msg = "MAGNET PRESSURE HIGH WARNING >0.6psi"
+                        errors.append(msg)
+                        pressure_warnings.append(msg)
+
+        # avg_mag_psi — no suppression
+        avg_mag = row.get('avg_mag_psi', None)
+        if avg_mag is not None:
+            if avg_mag > 1.75 or avg_mag < 0.0:
+                colors['avg_mag_psi'] = CRITICAL_RED.name()
+            elif avg_mag >= 0.3 and avg_mag <= 0.6:
+                colors['avg_mag_psi'] = LIGHT_GREEN.name()
+            else:
+                colors['avg_mag_psi'] = WARNING_YELLOW.name()
+
+        # ── Water diff ──────────────────────────────────────────────────────
+        diff = row.get('water_diff', None)
+        if diff is not None:
+            if water_probe_defective:
+                colors['water_diff'] = TEXT_COLOR.name()
+            else:
+                if diff < 5:
+                    if diff < 2:
+                        colors['water_diff'] = CRITICAL_RED.name()
+                        msg = "WATER TEMP DELTA ERROR <2F"
+                        errors.append(msg)
+                        water_errors.append(msg)
+                    else:
+                        colors['water_diff'] = WARNING_YELLOW.name()
+                        msg = "WATER TEMP DELTA WARNING <5F"
+                        errors.append(msg)
+                        water_warnings.append(msg)
+                elif diff > 30:
+                    colors['water_diff'] = CRITICAL_RED.name()
+                    msg = "WATER TEMP DELTA WARNING >30F"
+                    errors.append(msg)
+                    water_errors.append(msg)
+                else:
+                    colors['water_diff'] = LIGHT_GREEN.name()
+
+        # ── Summaries ───────────────────────────────────────────────────────
+        if errors:
+            colors['errors'] = CRITICAL_RED.name()
+            colors['error_text'] = errors[0] if len(errors) == 1 else f"{len(errors)} errors"
+        else:
+            colors['errors'] = TEXT_COLOR.name()
+
+        # Full lists for tooltips
+        colors['pressure_warning_list'] = pressure_warnings
+        colors['pressure_error_list']   = pressure_errors
+        colors['water_warning_list']    = water_warnings
+        colors['water_error_list']      = water_errors
+
+        return colors
+    
+    
 
 
 #### DATA COLLECTION SECTION WORKER FUNCTIONS ------------------------------------------------------------------------------------------------------------------------
@@ -1856,29 +3188,25 @@ class MainWindow(QMainWindow):
 #        print("STARTING: update_data")
         start_time = time.time()
 
-    # --------- GLOB TO SEARCH FOR NEW SIDS SECTION --------------------------------------------------------------------
+  ### ========== GLOB TO SEARCH FOR NEW SIDS SECTION =========================================
         all_sid_discovery_files = [] 
         current_sid = self.selected_sid                                
-        pattern = "*_*_HPM2_Test_data.log"
+        pattern_new = "*_*_HPM2_Test_data.log"          # existing
+        pattern_old = "*_*_HPM2_BTrdr2_test_data.txt"   # new
         all_log_folders = self.compile_log_folders()
         for entry in all_log_folders:
             folder = entry["path"]
             recursive = entry.get("recursive", False)
             if not os.path.exists(folder):
                 continue
-            if recursive:
-                # "**" only works with recursive=True
-                search_pattern = os.path.join(folder, "**", pattern)
-                matches = glob.glob(search_pattern, recursive=True)
-            else:
-                search_pattern = os.path.join(folder, pattern)
-                matches = glob.glob(search_pattern)
-            all_sid_discovery_files.extend(matches)
+            matches_new = glob.glob(os.path.join(folder, "**", pattern_new), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_new))
+            matches_old = glob.glob(os.path.join(folder, "**", pattern_old), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_old))
+            all_sid_discovery_files.extend(matches_new + matches_old)
 
         sids = set()
         
         for log_file in all_sid_discovery_files:                     
-            match = re.match(r"(.+?)_\d{8}_[A-Za-z]+_HPM2_Test_data\.log", os.path.basename(log_file))
+            match = re.match(r"^(\d+)_\d{8}", os.path.basename(log_file))
             if match:
                 sids.add(match.group(1))
         new_sids = sorted(sids, key=int)
@@ -1898,31 +3226,48 @@ class MainWindow(QMainWindow):
                 self.water_y_default = [-1, 1]
             self.sid_combo.blockSignals(False)
 
-    # -------------- GLOB TO GET ALL FILES FOR SELECTED_SID ------------------------
+  ### ========== GLOB TO GET ALL FILES FOR SELECTED_SID ===========================================
         # Updates gauge, displays, and plots with data from the selected SID
         if not self.selected_sid:
             return
         
         selected_sid_log_files = []
-        pattern = f"{self.selected_sid}_*_HPM2_Test_data.log"
+        pattern_new = f"{self.selected_sid}_*_HPM2_Test_data.log"
+        pattern_old = f"{self.selected_sid}_*_HPM2_BTrdr2_test_data.txt"
         for entry in all_log_folders:
             folder = entry["path"]
             recursive = entry.get("recursive", False)
             if not os.path.exists(folder):
                 continue
-            if recursive:
-                # "**" only works with recursive=True
-                search_pattern = os.path.join(folder, "**", pattern)
-                matches = glob.glob(search_pattern, recursive=True)
-            else:
-                search_pattern = os.path.join(folder, pattern)
-                matches = glob.glob(search_pattern)
-            selected_sid_log_files.extend(matches)
+            matches_new = glob.glob(os.path.join(folder, "**", pattern_new), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_new))
+            matches_old = glob.glob(os.path.join(folder, "**", pattern_old), recursive=recursive) if recursive else glob.glob(os.path.join(folder, pattern_old))
+            selected_sid_log_files.extend(matches_new + matches_old)
 
+        # ── Deduplicate: keep only the file with the latest mtime for each date ───────
+        date_to_file_and_mtime = {}  # key: 'YYYYMMDD' str → (full_path, mtime)
 
+        for f in selected_sid_log_files:
+            match = re.search(r"_(\d{8})_", os.path.basename(f))
+            if not match:
+                continue
+            date_key = match.group(1)  # '20260213'
+            try:
+                current_mtime = os.path.getmtime(f)
+            except Exception:
+                continue  # skip unreadable files
+
+            # If we haven't seen this date, or this file is newer
+            if date_key not in date_to_file_and_mtime or current_mtime > date_to_file_and_mtime[date_key][1]:
+                date_to_file_and_mtime[date_key] = (f, current_mtime)
+
+        # Rebuild list with only the newest file per date
+        selected_sid_log_files = [path for path, mtime in date_to_file_and_mtime.values()]
+
+#        print(f"selected_sid_log_files after dedup (newest mtime per date) = {selected_sid_log_files}")
+
+  ### ========== NEEDS PROCESSING SECTION =======================================================
         # Quick early exit: if no files changed since last run, skip everything
-        needs_processing = None#self.cached_df is None or self.cached_df.empty
-#        print(f"    update_data - cached_df None/empty = {needs_processing}")
+        needs_processing = None
 
 #        print(f"    update_data - update_keys\nprev={self.prev_update_key}\nnew={new_update_key}")
         if not needs_processing:
@@ -1957,7 +3302,7 @@ class MainWindow(QMainWindow):
         self.is_processing = True
 #        print("    update_data - Needs Processing → continuing on with the rest of the function")
  
-    # -------------  GAUGE/DISPLAY SECTION ------------------------------------------------
+  ### ========== GAUGE/DISPLAY SECTION ============================================================
     # Find the single newest file by date in filename for gauge/display
         newest_file = None
         newest_mtime = 0
@@ -1984,34 +3329,77 @@ class MainWindow(QMainWindow):
 #                print("    update_data - newest file changed → updating gauge")
                 latest_df = self.process_log_file([newest_file])
 
-    # Update gauge and displays with the most recent sample
-        if latest_df is not None and not latest_df.empty:
-            try:
-                latest = latest_df.iloc[-1]
-                latest_date = latest['DATE TIME']
-                mag_psi = latest['mag_psi']
-                self.gauge.setValue(mag_psi)
-                self.fullscreen_gauge.setValue(mag_psi)
-                self.left_display.setText(
-                    f"                             LATEST\n"
-                    f"{latest_date.strftime(' %Y-%m-%d    %H:%M:%S')}\n"
-                    f"{'Magnet Pressure:':<21} {mag_psi:>6.2f}\n"
-                    f"{'Mag. Avg. Press.:':<22} {latest['avg_mag_psi']:>6.2f}\n"
-                    f"{'Wika Pressure:':<22} {latest['wika_psi']:>6.2f}\n"
-                    f"{'Atmospheric Press.:':<20} {latest['atm_psi']:>6.2f}"
-                )
-                self.right_display.setText(
-                    f"READING\n"
-                    f"Errors: {self.errors}\n"
-                    f"{'Water Temp Diff:':<20} {latest['water_diff']:>6.2f}\n"
-                    f"{'Water Temp In:':<20} {latest['water_in_f']:>6.2f}\n"
-                    f"{'Water Temp Out:':<18} {latest['water_out_f']:>6.2f}\n"
-                    f"{'Scan Pulses:':<21} {latest['scan_pulses']:>6}"
-                )
-            except Exception as e:
-                self.log_error(f"Error updating gauge/displays: {e}")
 
-    # -------PLOT SECTION -------------------------------------------------------------------
+
+
+
+
+    # Update gauge and displays with the most recent sample
+            if latest_df is not None and not latest_df.empty:
+                try:
+                    latest = latest_df.iloc[-1]
+                    latest_date = latest['DATE TIME']
+                    mag_psi = latest['mag_psi']
+
+                    self.gauge.setValue(mag_psi)
+                    self.fullscreen_gauge.setValue(mag_psi)
+
+                    # Get colors for this single row
+                    colors = self.get_alert_colors_for_row(latest.to_dict())
+                    """
+                    # Left & Right Displays - color only the Values
+                    left_text = (
+                        f"                             LATEST<br>"
+                        f"{latest_date.strftime(' %Y-%m-%d    %H:%M:%S')}<br>"
+                        f"{'Magnet Pressure:':<21} <span style='color:{colors['mag_psi']};'>{mag_psi:>6.2f}</span><br>"
+                        f"{'Mag. Avg. Press.:':<22} <span style='color:{colors['avg_mag_psi']};'>{latest['avg_mag_psi']:>6.2f}</span><br>"  # same color as mag_psi
+                        f"{'Wika Pressure:':<22} <span style='color:{colors['wika_psi']};'>{latest['wika_psi']:>6.2f}</span><br>"
+                        f"{'Atmospheric Press.:':<20} <span style='color:{colors['atm_psi']};'>{latest['atm_psi']:>6.2f}</span>"
+                    )
+                    self.left_display.setText(left_text)
+
+                    right_text = (
+                        f"READING<br>"
+                        f"Errors: <span style='color:{colors['errors']};'>{colors['error_text']}</span><br>"
+                        f"{'Water Temp Diff:':<20} <span style='color:{colors['water_diff']};'>{latest['water_diff']:>6.2f}</span><br>"
+                        f"{'Water Temp In:':<20} <span style='color:{colors['water_in_f']};'>{latest['water_in_f']:>6.2f}</span><br>"
+                        f"{'Water Temp Out:':<18} <span style='color:{colors['water_out_f']};'>{latest['water_out_f']:>6.2f}</span><br>"
+                        f"{'Scan Pulses:':<21} <span style='color:{TEXT_COLOR.name()};'>{latest['scan_pulses']:>6}</span>"
+                    )
+                    self.right_display.setText(right_text)
+                    """
+                    # Left & Right Displays - color the whole line.
+                    left_text = (
+                        f"<span style='color:{TEXT_COLOR.name()};'>                             LATEST</span><br>"
+                        f"<span style='color:{TEXT_COLOR.name()};'>{latest_date.strftime(' %Y-%m-%d    %H:%M:%S')}</span><br>"
+                        f"<span style='color:{colors['mag_psi']};'>{'Magnet Pressure:':<21} {mag_psi:>6.2f}</span><br>"
+                        f"<span style='color:{colors['avg_mag_psi']};'>{'Mag. Avg. Press.:':<22} {latest['avg_mag_psi']:>6.2f}</span><br>"  # same color as mag_psi
+                        f"<span style='color:{colors['wika_psi']};'>{'Wika Pressure:':<22} {latest['wika_psi']:>6.2f}</span><br>"
+                        f"<span style='color:{colors['atm_psi']};'>{'Atmospheric Press.:':<20} {latest['atm_psi']:>6.2f}</span>"
+                    )
+                    self.left_display.setText(left_text)
+
+                    right_text = (
+                        f"<span style='color:{TEXT_COLOR.name()};'>READING</span><br>"
+                        f"<span style='color:{colors['errors']};'>Errors: {colors['error_text']}</span><br>"
+                        f"<span style='color:{colors['water_diff']};'>{'Water Temp Diff:':<20} {latest['water_diff']:>6.2f}</span><br>"
+                        f"<span style='color:{colors['water_in_f']};'>{'Water Temp In:':<20} {latest['water_in_f']:>6.2f}</span><br>"
+                        f"<span style='color:{colors['water_out_f']};'>{'Water Temp Out:':<18} {latest['water_out_f']:>6.2f}</span><br>"
+                        f"<span style='color:{TEXT_COLOR.name()};'>{'Scan Pulses:':<21} {latest['scan_pulses']:>6}</span>"
+                    )
+                    self.right_display.setText(right_text)                    
+                #    """
+                except Exception as e:
+                    self.log_error(f"Error updating gauge/displays: {e}")
+                    self.left_display.setText("Latest data unavailable")
+                    self.right_display.setText("Latest data unavailable")
+
+
+
+
+
+
+  ### ========== PLOT SECTION ===================================================================
     # Ensure start_date and end_date are timezone-aware
         local_tz = get_localzone()  # Get local timezone    
         if self.start_date and self.start_date.tzinfo is None:
@@ -2027,7 +3415,7 @@ class MainWindow(QMainWindow):
             end_date = self.end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             
             for f in selected_sid_log_files:
-                match = re.search(r'_(\d{8})_[A-Za-z]+_HPM2_Test_data\.log', os.path.basename(f))
+                match = re.search(r"_(\d{8})_", os.path.basename(f))
                 if match:
                     try:
                         file_date = datetime.strptime(match.group(1), '%Y%m%d').replace(tzinfo=local_tz)
@@ -2037,7 +3425,7 @@ class MainWindow(QMainWindow):
                     except ValueError:
                         continue
             log_files = sorted(log_files)
-
+#        print(f"log_files = {log_files}")
         # Store sorted list of all available dates for this SID
         self.selected_sid_dates = sorted(valid_dates) if valid_dates else []
         
@@ -2074,51 +3462,68 @@ class MainWindow(QMainWindow):
 
 #        print("    update_data - CALLING: update_plots")
         self.update_plots()        
-        QTimer.singleShot(100, self.reset_zoom) # <=== Needed to delay it a little to allow for graph to render
-        
+        QTimer.singleShot(200, self._update_caches)
         self.is_processing = False       
         end_time = time.time()
 #        print(f"FINISHED: update_data - took {end_time - start_time:.2f} seconds, this includes timers from here back to Starting: update_data.\n")
 
 
+# THIS IS A NEW VERSION TO SUPPORT THE NEW and OLD FILES. 
     def process_log_file(self, log_files):
-#        print("STARTING: process_log_file")
         start_time = time.time()
         if not log_files:
             return None
         dfs = []
-        local_tz = get_localzone()  # Get local timezone using tzlocal
+        local_tz = get_localzone()
+        common_base_cols = ['DATE TIME', 'wika_psi', 'atm_psi', 'water_in_f', 'water_out_f',
+                            'scan_pulses', 'water_diff', 'mag_psi']
         for log_file in log_files:
             try:
+                # Peek at first line to check for proper header
                 with open(log_file, 'r') as f:
                     header = f.readline().strip()
-                
                 if 'DATE TIME' in header and ',' in header:
+                    # Headered format (newer style)
                     df = pd.read_csv(log_file, parse_dates=['DATE TIME'])
-                    # Ensure DATE TIME is in local timezone
                     if df['DATE TIME'].dt.tz is None:
                         df['DATE TIME'] = df['DATE TIME'].dt.tz_localize(local_tz)
                     else:
                         df['DATE TIME'] = df['DATE TIME'].dt.tz_convert(local_tz)
-                    dfs.append(df)
+                    # Ensure only expected columns (safety)
+                    if 'scan_pulses' not in df.columns:
+                        # Some headered files might lack it — add NaN if missing
+                        df['scan_pulses'] = pd.NaT  # or np.nan
+                    df = df[common_base_cols[:-1] + ['mag_psi']]  # reorder/select known cols
                 else:
-                    try:
-                        df = pd.read_csv(log_file, names=['DATETIME', 'wika_psi', 'atm_psi', 'water_in_f', 'water_out_f',
-                                                         'He_last_read', 'scan_pulses', 'water_diff', 'mag_psi'], skiprows=1)
-                        df['DATETIME'] = df['DATETIME'].astype(str).str.strip()
-                        df['DATE TIME'] = pd.to_datetime(df['DATETIME'], format='%Y%m%d %H:%M:%S', errors='coerce').dt.tz_localize(local_tz)
-                        if df['DATE TIME'].isna().any():
-                            invalid_rows = df[df['DATE TIME'].isna()]['DATETIME'].to_dict()
-                            self.log_error(f"Invalid DATETIME rows in {log_file}: {invalid_rows}")
-                            continue
-                        for col in ['wika_psi', 'atm_psi', 'water_in_f', 'water_out_f', 'water_diff', 'mag_psi']:
-                            df[col] = pd.to_numeric(df[col], errors='coerce')
-                        df['avg_mag_psi'] = df['mag_psi'].rolling(window=10, min_periods=1).mean()
-                        df = df.drop(columns=['DATETIME', 'He_last_read'], errors='ignore')
-                        dfs.append(df)
-                    except Exception as e:
-                        self.log_error(f"Legacy log parsing failed for {log_file}: {str(e)}")
+                    # Non-header format — detect column count to choose layout
+                    temp_df = pd.read_csv(log_file, skiprows=1, header=None, nrows=10)
+                    num_cols = temp_df.shape[1]
+                    if num_cols == 9:
+                        column_names = ['DATETIME', 'wika_psi', 'atm_psi', 'water_in_f', 'water_out_f',
+                                        'He_last_read', 'scan_pulses', 'water_diff', 'mag_psi']
+                    elif num_cols == 14:
+                        column_names = ['DATETIME', 'wika_psi', 'atm_psi', 'water_in_f', 'water_out_f',
+                                        'He_last_read', 'scan_pulses', 'rf_gate', 'RESETs_cnt',
+                                        'WIKA_p', 'WIKA_delay', 'water_diff', 'mag_psi', '']
+                    else:
+                        self.log_error(f"Unexpected column count {num_cols} in {log_file}")
                         continue
+                    df = pd.read_csv(log_file, names=column_names, skiprows=1, header=None)
+                    df['DATETIME'] = df['DATETIME'].astype(str).str.strip()
+                    df['DATE TIME'] = pd.to_datetime(df['DATETIME'], format='%Y%m%d %H:%M:%S',
+                                                    errors='coerce').dt.tz_localize(local_tz)
+                    if df['DATE TIME'].isna().any():
+                        df = df.dropna(subset=['DATE TIME'])
+                    df = df.drop(columns=['DATETIME', 'He_last_read'], errors='ignore')
+                    # Drop old-format extras if present
+                    df = df.drop(columns=['rf_gate', 'RESETs_cnt', 'WIKA_p', 'WIKA_delay', ''], errors='ignore')
+                # Common processing for both formats
+                for col in ['wika_psi', 'atm_psi', 'water_in_f', 'water_out_f', 'water_diff', 'mag_psi']:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                df['avg_mag_psi'] = df['mag_psi'].rolling(window=10, min_periods=1).mean()
+                # Final column selection — ensures identical structure
+                df = df[common_base_cols + ['avg_mag_psi']]
+                dfs.append(df)
             except Exception as e:
                 self.log_error(f"Error processing log file {log_file}: {e}")
                 continue
@@ -2127,9 +3532,7 @@ class MainWindow(QMainWindow):
         df = pd.concat(dfs, ignore_index=True)
         df = df.sort_values('DATE TIME').drop_duplicates(subset='DATE TIME', keep='last')
         end_time = time.time()
-#        print(f"FINISHED: process_log_file - took {end_time - start_time:.2f} seconds")
         return df
-
 
     def downsample_with_extremes(self, df, target_points=8000):
         """

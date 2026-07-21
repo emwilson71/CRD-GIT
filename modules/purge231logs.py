@@ -20,7 +20,7 @@ CONFIG_DIR = Path.cwd().parent / "config"
 USER_KEY_PATH = CONFIG_DIR / "user.key"
 USER_ENC_PATH = CONFIG_DIR / "user.enc"
 CURRENT_DAT_PATH = CONFIG_DIR / "current.dat"
-COMMANDS_JSON_PATH = CONFIG_DIR / "231commands.json"
+#COMMANDS_JSON_PATH = CONFIG_DIR / "231commands.json"
 # --------------------------------------------------------------
 class PurgeWorker(QThread):
     log_signal = pyqtSignal(str)

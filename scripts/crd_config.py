@@ -1,7 +1,8 @@
 # ----------------------------------------------------------------------
 """
 crd_config.py (ew)
-Version 1.01 Updated 02/11/26
+2026.07.17 Updated for ui
+Version 1.02 Updated 07/17/26
 """
 # ----------------------------------------------------------------------
 import sys
@@ -10,9 +11,12 @@ import os
 import logging
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QPushButton,
                              QComboBox, QLabel, QLineEdit, QSizePolicy, QSpacerItem, QFileDialog, QMessageBox)
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
+from PyQt5.QtGui import QPixmap, QIcon
 from crd_encryptor import update_config
 from crd_embedded import CustomMessageBox, Paths, CRDLogger, Styles
+icon_path = lambda name: os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "../html/icons/", name))
 # ----------------------------------------------------------------------
 crd_logger = CRDLogger("CRD")
 logger = crd_logger.get_logger()
@@ -152,7 +156,7 @@ class ConfigUI(QWidget):
         
         rdpres_layout = QHBoxLayout()
         rdpres_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
-        self.rdpres_cb = QCheckBox("NA")
+        self.rdpres_cb = QCheckBox("WIP Dark Theme")
         self.rdpres_cb.setChecked(self.paths_config["settings"].get("rdpres", False))
         rdpres_layout.addWidget(self.rdpres_cb)
         rdpres_layout.addStretch()
@@ -192,8 +196,7 @@ class ConfigUI(QWidget):
         self.section_combo = QComboBox()
         self.section_combo.setStyleSheet(Styles.COMBO_BOX)
         self.section_combo.addItems([
-            "USER", "SP_WIN10", "SP_WIN7", "MR_MP6+", "MR_MP3-5", "MR_MP2", "MR_GP",
-            "CT_SCAN", "UL", "VL", "XR", "CT_DISPLAY"
+            "USER", "SP_WIN10", "SP_WIN7", "MR_MP6+", "MR_MP3-5", "MR_MP2", "MR_GP"
         ])
         self.section_combo.setFixedWidth(150)
         self.section_combo.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
@@ -282,7 +285,9 @@ class ConfigUI(QWidget):
 
         save_layout = QHBoxLayout()
         save_layout.addStretch()
-        self.save_btn = QPushButton("📤 SAVE")
+        self.save_btn = QPushButton("SAVE")
+        self.save_btn.setIcon(QIcon(icon_path("download.png")))
+        self.save_btn.setIconSize(QSize(24, 24))
         self.save_btn.setStyleSheet(Styles.BUTTON_STYLE)
         self.save_btn.setFixedWidth(130)
         self.save_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)

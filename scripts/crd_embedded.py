@@ -2,7 +2,8 @@
 """
 crd_embedded.py 04/02/25 (ew)
 2025.10.14 Edited SIDEBAR_STYLE, JS
-Version 1.1 Updated 03/04/26
+2026.07.17 Cleaned Up Code, EW
+Version 1.10 Updated 03/04/26
 """  
 # ----------------------------------------------------------------------  
 import os, sys, logging, json, subprocess, platform
@@ -16,10 +17,10 @@ from PyQt5.QtWidgets import (
     QListView, QTextEdit, QMessageBox, QPushButton,   
     QHBoxLayout, QLabel  
 )  
-from PyQt5.QtCore import QStringListModel, Qt, QTimer, pyqtSignal as Signal
+from PyQt5.QtCore import QStringListModel, Qt, QTimer, QSize, pyqtSignal as Signal
 from PyQt5.QtWidgets import QWidget
+from PyQt5.QtGui import QPixmap, QIcon
 from datetime import datetime
-# from crd_stylesheets import Styles
 # LOGGING -------------------------------------------------------------- 
 class CRDLogger:
     def __init__(self, name):
@@ -30,7 +31,7 @@ class CRDLogger:
         self.log_file = os.path.join(self.logs_dir, f"CRD_{self.datestamp}.log")
         self.clear_previous_logs()
         self.configure_logging()
-
+# ----------------------------------------------------------------------  
     def clear_previous_logs(self):
         log_pattern = os.path.join(self.logs_dir, "*.log")
         current_log = self.log_file 
@@ -40,7 +41,7 @@ class CRDLogger:
                     os.remove(log_file)
                 except OSError as e:
                     pass
-
+# ----------------------------------------------------------------------  
     def configure_logging(self):
         logger = logging.getLogger(self.name)
         logger.setLevel(logging.INFO)
@@ -53,7 +54,7 @@ class CRDLogger:
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
-
+# ----------------------------------------------------------------------  
     def get_logger(self):
         return logging.getLogger(self.name)
 # CLASS MAPPING DIR ----------------------------------------------------
@@ -63,8 +64,6 @@ class Paths:
     CONFIG_DIR = os.path.join(PARENT_DIR, 'config')  
     LOG_DIR = os.path.join(PARENT_DIR, 'logs')  
     HTML_DIR = os.path.join(PARENT_DIR, 'html')  
-    #CURRENT_DAT = os.path.join(CONFIG_DIR, 'current.dat')  
-    #APP_TREE = os.path.join(CONFIG_DIR, 'apptree.dat')
 # CLASS FOR MESSAGE BOX ------------------------------------------------
 class CustomMessageBox(QMessageBox):  
     def __init__(self, title="", message="", msg_type=QMessageBox.Icon.Information, parent=None):  
@@ -72,28 +71,10 @@ class CustomMessageBox(QMessageBox):
         self.setWindowTitle(title)  
         self.setText(message)  
         self.setIcon(msg_type)  
-        setStyleSheet(Styles.MESSAGE_BOX) 
-        self.setStyleSheet("""  
-            QMessageBox {  
-                background-color: #404040;  
-                color: lightgray;                 
-            }  
-            QMessageBox QLabel {  
-                color: white;             
-            }  
-            QMessageBox QPushButton {  
-                background-color: gray;  
-                color: white;               
-                border: 1px solid gray;      
-                padding: 5px;               
-            }  
-            QMessageBox QPushButton:hover {  
-                background-color: red;  
-            }  
-        """)
+        setStyleSheet(Styles.MESSAGE_BOX_STYLE) 
         self.setStandardButtons(QMessageBox.StandardButton.Cancel)  
         self.adjustSize()  
-# CENTER BOX ON SCREEN 
+# CENTER BOX ON UI
     def center(self):  
         if self.parent() is not None:  
             parent_geometry = self.parent().geometry()  
@@ -105,7 +86,6 @@ class CustomMessageBox(QMessageBox):
         return self.exec()
 # ----------------------------------------------------------------------        
 class Styles:
-    # Menu
     MENU_STYLE = """
         QMenu {
             background-color: #202020;
@@ -137,7 +117,6 @@ class Styles:
         }
     """
 
-    # Buttons
     BUTTON_STYLE = """
         QPushButton {
             background-color: #606060;
@@ -207,7 +186,6 @@ class Styles:
         }
     """
 
-    # Edit Boxes
     LINE_EDIT_STYLE = """
         QLineEdit {
             background-color: #404040;
@@ -229,8 +207,6 @@ class Styles:
             height: 26px;
         }
     """
-
-    # Labels
     STD_LABEL_STYLE = """
         QLabel {
             color: white;
@@ -247,8 +223,6 @@ class Styles:
             font-weight: bold;
         }
     """
-
-    # Other widgets
     GROUP_BOX = """
         QGroupBox {
             color: white;
@@ -308,8 +282,6 @@ class Styles:
             text-decoration: underline;
         }
     """
-
-    # Message Boxes
     MESSAGE_BOX_STYLE = """
         QMessageBox {
             background-color: #202020;
@@ -420,8 +392,6 @@ class Styles:
             border: none;
         }
     """
-
-    # Tab Widget (latest version)
     TAB_WIDGET_STYLE = """
         QTabWidget::pane {
             border: 1px solid #5A5A5A;
@@ -449,8 +419,51 @@ class Styles:
             border-bottom: none;
         }
     """
-
-    # Sidebar
+    WIDGET_STYLE = """
+        QWidget {
+            background-color: #202020;
+        }
+        QGroupBox {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 0 3px;
+        }
+        QLabel {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        QLineEdit {
+            background-color: #404040;
+            color: white;
+            border: none;
+            padding: 5px;
+            font-size: 12px;
+        }
+        QCheckBox {
+            color: white;
+            font-size: 12px;
+        }
+        QComboBox {
+            background-color: #404040;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            padding: 5px;
+        }
+        QComboBox QAbstractItemView {
+            background-color: #404040;
+            color: white;
+            selection-background-color: #606060;
+        }
+        """
     SIDEBAR_STYLE = """
         QWidget {
             background-color: #202020;
@@ -486,196 +499,117 @@ class Styles:
     def apply_theme(cls, app, theme="dark"):
         if theme == "dark":
             full_stylesheet = (
-                #cls.BUTTON_STYLE +
-                #cls.REFRESHBUTTON_STYLE +
-                #cls.CONFIG_BUTTON_STYLE +
-                #cls.LINE_EDIT_STYLE +
-                #cls.SID_EDIT_BOX_STYLE + 
                 cls.MESSAGE_BOX_STYLE +
                 cls.DIALOG +
                 cls.LOADING_DIALOG_STYLE +
-                #cls.TEXT_EDIT_STYLE +
                 cls.MENU_STYLE  
             )
             app.setStyleSheet(full_stylesheet)
-# ======================================================================
+# ----------------------------------------------------------------------  
 class VersionManager:
     @staticmethod
     def update_json():
         try:
             crd_dir = os.path.dirname(os.path.abspath(__file__))
-            versions_path = os.path.normpath(os.path.join(crd_dir, "../config/versions.json"))
+            versions_path = os.path.normpath(
+                os.path.join(crd_dir, "../config/versions.json")
+            )
+            modules_dir = os.path.normpath(
+                os.path.join(crd_dir, "../modules")
+            )
+
             if not os.path.exists(versions_path):
-                with open(versions_path, 'w', encoding='utf-8') as f:
+                with open(versions_path, "w", encoding="utf-8") as f:
                     json.dump({}, f, indent=4)
-            
-            with open(versions_path, 'r', encoding='utf-8') as f:
-                try:
+
+            try:
+                with open(versions_path, "r", encoding="utf-8") as f:
                     versions = json.load(f)
-                except json.JSONDecodeError:
-                    versions = {}  
- # SCAN SCRIPTS/MODULES           
-            scripts_dir = crd_dir
-            modules_dir = os.path.normpath(os.path.join(crd_dir, '../modules'))
-            
+            except (json.JSONDecodeError, OSError):
+                versions = {}
+
+            ignored_files = {"__init__.py", "__init__.pyw"}
+
             scripts_files = [
-                f for f in os.listdir(scripts_dir)
-                if (f.endswith('.py') or f.endswith('.pyw')) and not os.path.isdir(os.path.join(scripts_dir, f))
+                filename
+                for filename in os.listdir(crd_dir)
+                if (
+                    filename.endswith((".py", ".pyw"))
+                    and filename not in ignored_files
+                    and os.path.isfile(os.path.join(crd_dir, filename))
+                )
             ]
-            
-            modules_files = [
-                os.path.join('modules', f) for f in os.listdir(modules_dir)
-                if (f.endswith('.py') or f.endswith('.pyw')) and not os.path.isdir(os.path.join(modules_dir, f))
-            ] if os.path.exists(modules_dir) else []
-            
-            all_current_files = set(scripts_files + modules_files)
-            
-            updated = False
-            current_date_str = dt.date.today().strftime("%m/%d/%y")
-            
-            for file_key in list(versions.keys()):
-                if file_key not in all_current_files:
-                    del versions[file_key]
-                    updated = True
-            
-            for file_key in all_current_files:
-                if file_key.startswith('modules/'):
-                    file_name = file_key.split('/')[-1]
-                    full_path = os.path.join(modules_dir, file_name)
-                else:
-                    full_path = os.path.join(scripts_dir, file_key)
-                
-                if not os.path.exists(full_path):
-                    continue  
-                
-                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                match = re.search(r'Version (\d+\.\d+) Updated (\d{2}/\d{2}/\d{2})', content)
-                if match:
-                    parsed_version = "{:.2f}".format(float(match.group(1)))
-                    parsed_updated = match.group(2)
-                else:
-                    parsed_version = "1.00"
-                    parsed_updated = current_date_str
-                
-                if file_key not in versions:
-                    versions[file_key] = f"{parsed_version} ({parsed_updated})"
-                    updated = True
-                else:
-                    v = versions[file_key]
-                    parts = v.split(' (')
-                    current_version = parts[0].strip()
-                    current_updated = parts[1].rstrip(')').strip() if len(parts) > 1 else 'N/A'
-                    
-                    if current_updated == 'N/A':
-                        current_updated = parsed_updated
-                    
-                    if parsed_version != current_version or parsed_updated != current_updated:
-                        versions[file_key] = f"{parsed_version} ({parsed_updated})"
-                        updated = True
-            
-            if updated:
-                versions = dict(sorted(versions.items()))
-                with open(versions_path, 'w', encoding='utf-8') as f:
-                    json.dump(versions, f, indent=4)
-        except Exception as e:
-            pass  
-# ======================================================================  
-class VersionManager:
-    @staticmethod
-    def update_json():
-        try:
-            crd_dir = os.path.dirname(os.path.abspath(__file__))
-            versions_path = os.path.normpath(os.path.join(crd_dir, "../config/versions.json"))
-            if not os.path.exists(versions_path):
-                with open(versions_path, 'w', encoding='utf-8') as f:
-                    json.dump({}, f, indent=4)
-           
-            with open(versions_path, 'r', encoding='utf-8') as f:
-                try:
-                    versions = json.load(f)
-                except json.JSONDecodeError:
-                    versions = {}
-           
-            scripts_dir = crd_dir
-            modules_dir = os.path.join(crd_dir, '../modules')
-           
-            scripts_files = [
-                f for f in os.listdir(scripts_dir)
-                if (f.endswith('.py') or f.endswith('.pyw')) and not os.path.isdir(os.path.join(scripts_dir, f))
-            ]
-           
-            if os.path.exists(modules_dir):
-                modules_files_list = os.listdir(modules_dir)
+
+            modules_files = []
+            if os.path.isdir(modules_dir):
                 modules_files = [
-                    os.path.join('modules', f) for f in modules_files_list
-                    if (f.endswith('.py') or f.endswith('.pyw')) and not os.path.isdir(os.path.join(modules_dir, f))
+                    os.path.join("modules", filename)
+                    for filename in os.listdir(modules_dir)
+                    if (
+                        filename.endswith((".py", ".pyw"))
+                        and filename not in ignored_files
+                        and os.path.isfile(os.path.join(modules_dir, filename))
+                    )
                 ]
-            else:
-                modules_files = []
-           
+
             all_current_files = set(scripts_files + modules_files)
             updated = False
-            current_date_str = dt.date.today().strftime("%m/%d/%y")
-           
-            for file_key in list(versions.keys()):
-                if file_key not in all_current_files:
+
+            for file_key in list(versions):
+                if file_key.replace("\\", "/") not in all_current_files:
                     del versions[file_key]
                     updated = True
-           
+
             for file_key in all_current_files:
-                file_key_norm = file_key.replace('\\', '/')
-                if file_key_norm.startswith('modules/'):
-                    file_name = file_key_norm.split('/')[-1]
-                    full_path = os.path.join(modules_dir, file_name)
+                normalized_key = file_key.replace("\\", "/")
+
+                if normalized_key.startswith("modules/"):
+                    full_path = os.path.join(
+                        modules_dir,
+                        os.path.basename(normalized_key)
+                    )
                 else:
-                    full_path = os.path.join(scripts_dir, file_key)
-               
-                if not os.path.exists(full_path):
+                    full_path = os.path.join(crd_dir, file_key)
+
+                try:
+                    with open(
+                        full_path,
+                        "r",
+                        encoding="utf-8",
+                        errors="ignore"
+                    ) as f:
+                        content = f.read()
+                except OSError:
                     continue
-               
-                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-               
-                version_match = re.search(r'Version (\d+\.\d+)', content)
-                date_match = re.search(r'Updated (\d{2}/\d{2}/\d{2})', content)
-               
-                parsed_version = ""
-                parsed_updated = ""
-               
-                if version_match:
-                    parsed_version = "{:.2f}".format(float(version_match.group(1)))
-               
-                if date_match:
-                    parsed_updated = date_match.group(1)
-               
-                if parsed_version and parsed_updated:
-                    new_value = f"{parsed_version} ({parsed_updated})"
-                elif parsed_version:
-                    new_value = parsed_version
-                elif parsed_updated:
-                    new_value = f" ({parsed_updated})"
+
+                version_match = re.search(r"Version\s+(\d+\.\d+)", content)
+                date_match = re.search(r"Updated\s+(\d{2}/\d{2}/\d{2})", content)
+
+                version = (
+                    f"{float(version_match.group(1)):.2f}"
+                    if version_match
+                    else ""
+                )
+                updated_date = date_match.group(1) if date_match else ""
+
+                if version and updated_date:
+                    new_value = f"{version} ({updated_date})"
+                elif version:
+                    new_value = version
+                elif updated_date:
+                    new_value = f" ({updated_date})"
                 else:
                     new_value = ""
-               
-                if file_key not in versions:
+
+                if versions.get(file_key) != new_value:
                     versions[file_key] = new_value
                     updated = True
-                else:
-                    current_value = versions[file_key]
-                    if new_value != current_value:
-                        versions[file_key] = new_value
-                        updated = True
-           
             if updated:
-                versions = dict(sorted(versions.items()))
-                with open(versions_path, 'w', encoding='utf-8') as f:
-                    json.dump(versions, f, indent=4)
-                print("JSON updated")
-            else:
-                print("No updates")
-        except Exception as e:
-            print(f"Error updating versions.json: {str(e)}")
+                with open(versions_path, "w", encoding="utf-8") as f:
+                    json.dump(dict(sorted(versions.items())), f, indent=4)
+
+        except Exception:
+            pass
 # ----------------------------------------------------------------------     
     @staticmethod
     def load_versions(about_viewer):
