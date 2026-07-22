@@ -25,5 +25,9 @@
         "button_border": "#FFFFFF",
         "button_text_disabled": "#A0A0A0",
         "label_text": "#FFFFFF"
+    },
+    "window": {
+        "windowx": "195",
+        "windowy": "184"
     }
 }

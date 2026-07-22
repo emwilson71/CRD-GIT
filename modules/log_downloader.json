@@ -4,9 +4,9 @@
     "remote_locations": [],
     "local_locations": [],
     "last_selections": {
-        "sid": "326512",
+        "sid": "30099670",
         "filechecks": [
-            "(Run && DL) Snapshot Log"
+            "Magnet Logs (SP)"
         ],
         "filemode": "File Checks",
         "ip_type": "",
@@ -17,8 +17,8 @@
         "file_filter": "",
         "protocol": "sftp",
         "date_filter_enabled": true,
-        "start_date": "2026-07-17",
-        "end_date": "2026-07-20",
+        "start_date": "2026-07-21",
+        "end_date": "2026-07-22",
         "quick_date": "",
         "incremental_download": false,
         "timed_download": false,

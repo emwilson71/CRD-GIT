@@ -176,14 +176,19 @@ class CustomWebEnginePage(QWebEnginePage):
             error.errorDescription(),
             error.url().toString()
         )
-        #error.ignoreCertificateError()
         return False
 # ------------------------------------------------------------------------
 class DesktopApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.load_config()
+        self.move(self.window_x, self.window_y)
+        self._original_moveEvent = self.moveEvent
+        self._original_closeEvent = self.closeEvent
+        self.moveEvent = self._moveEvent
+        self.closeEvent = self._closeEvent
         profile = QWebEngineProfile.defaultProfile()
-        self.app = QApplication(sys.argv)
+        self.app = QApplication(sys.argv)          
         Styles.apply_theme(self.app, theme="dark")
         cache_path = os.path.join(os.path.expanduser("~"), ".vpntoolbox", "cache")
         os.makedirs(cache_path, exist_ok=True)
@@ -219,7 +224,7 @@ class DesktopApp(QMainWindow):
         self.vpn_connected = False
         self.sp_ip = ""
         self.sid_database_populated = False
-        self.sid_data_manager = SIDDatabase()  
+        self.sid_data_manager = SIDDatabase()
         self.setWindowTitle("CRD")
         self.resize(1400, 1000)
         central_widget = QWidget(self)
@@ -435,7 +440,36 @@ class DesktopApp(QMainWindow):
         self.sw_version_edit_box.textChanged.connect(self.update_button_states) #JS_EDIT 25.12.24. ENABLED THIS TO MAKE THE BUTTONS ACTIVE RIGHT AWAY WHEN SELECTING FROM DATABASE. 
         self.modality_edit_box.textChanged.connect(self.check_modality) #JS_EDIT 25.12.24. ADDED THIS TO PREVENT APP FROM FLASHING. 
         self.update_apptree()
-# ------------------------------------------------------------------------        
+# ------------------------------------------------------------------------
+# WINDOW POSITION
+    def _moveEvent(self, event):
+        super().moveEvent(event)        
+        self.save_window_position()
+
+    def _closeEvent(self, event):
+        self.save_window_position()
+        super().closeEvent(event)
+
+    def save_window_position(self):
+        config_dir = os.path.join(os.path.dirname(__file__), '..', 'config')
+        settings_path = os.path.join(config_dir, 'settings.json')
+        try:
+            if os.path.exists(settings_path):
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            else:
+                config = {}
+            
+            config.setdefault('window', {})
+            pos = self.pos()
+            config['window']['windowx'] = str(pos.x())
+            config['window']['windowy'] = str(pos.y())
+            
+            with open(settings_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4)
+        except Exception as e:
+            logger.error(f"[CRD UI] Failed to Save Window Position: {type(e).__name__}: {e}")
+# ------------------------------------------------------------------------  
     def update_apptree(self):
         modality = self.edit_boxes.get("Modality", QLineEdit()).text().strip().upper()
         logger.info(f"[CRD UI] Updating AppTree with modality: {modality}")
@@ -908,7 +942,6 @@ class DesktopApp(QMainWindow):
             error_label.setStyleSheet("color: red; font-size: 12px; font-weight: bold;")
             config_layout.addWidget(error_label)
             config_layout.addStretch()
-
 # VPN/URL
         browser_tab = QWidget()
         self.browser_tab_index = self.tab_widget.addTab(browser_tab, " VPN/URL ")
@@ -1393,11 +1426,26 @@ class DesktopApp(QMainWindow):
         enc_path = os.path.join(config_dir, 'user.enc')
         try:
             if os.path.exists(settings_path):
-                with open(settings_path, 'r') as f:
+                with open(settings_path, 'r', encoding='utf-8') as f:
                     settings = json.load(f)
+                window = settings.get('window', {})
+                self.window_x = int(window.get('windowx') or 10)
+                self.window_y = int(window.get('windowy') or 10)
+                self.popup_x = int(window.get('popupx') or 50)
+                self.popup_y = int(window.get('popupy') or 50)
                 self.auto_login_enabled = settings.get('settings', {}).get('vpnauto', False)
+            else:
+                self.window_x = 10
+                self.window_y = 10
+                self.popup_x = 50
+                self.popup_y = 50
+                self.auto_login_enabled = False
         except Exception as e:
             logger.error(f"[CRD UI] Settings: {type(e).__name__}: {e}")
+            self.window_x = 10
+            self.window_y = 10
+            self.popup_x = 50
+            self.popup_y = 50
             self.auto_login_enabled = False
 
         self.vpn_username = ''
@@ -1782,18 +1830,19 @@ OnActive=1
 # ------------------------------------------------------------------------        
 def main():
     VersionManager.update_json()
+    
     app = QApplication(sys.argv)
     app.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
+    
     desktop_app = DesktopApp()
-    screen_geometry = app.primaryScreen().geometry()
-    x = 10 
-    y = 10 
-    desktop_app.move(x, y)
+    desktop_app.load_config()         
+    
+    desktop_app.move(desktop_app.window_x, desktop_app.window_y)
     desktop_app.show()
+    
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
     main()
 # ------------------------------------------------------------------------
-#(screen_geometry.width() - desktop_app.width()) // 2
-#(screen_geometry.height() - desktop_app.height()) // 2                                    
+                               

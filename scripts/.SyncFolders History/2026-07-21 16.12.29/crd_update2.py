@@ -3,53 +3,42 @@
 crd_update.py - Remote Update Module for Private Repo
 Version 1.02 Updated 07/21/26
 """
-# ----------------------------------------------------------------------
 import sys
 import os
 import requests
 import json
+from datetime import datetime
 from PyQt5.QtWidgets import QMessageBox
-# ----------------------------------------------------------------------
+
+# Resolve project root correctly whether frozen or not
 if getattr(sys, 'frozen', False):
+    # Running as PyInstaller EXE
     BASE_DIR = os.path.dirname(sys.executable)
 else:
+    # Running as script
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Adjust if your layout is different (e.g. scripts/ is a subfolder)
 PROJECT_ROOT = BASE_DIR
-# ----------------------------------------------------------------------
-def _load_github_token():
-    token = os.environ.get("CRD_GITHUB_TOKEN")
-    if token:
-        return token
+# If config/ lives next to the EXE or one level up, change as needed:
+# PROJECT_ROOT = os.path.join(BASE_DIR, "..")   # example
 
-    token_path = [
-        os.path.join(PROJECT_ROOT, "..", "config", "token.json"),         
-    ]
+# ---- NEVER hardcode tokens in source ----
+# Prefer environment variable, or a local secrets file that is gitignored
+GITHUB_TOKEN = os.environ.get("CRD_GITHUB_TOKEN") or "YOUR_NEW_TOKEN_HERE"
 
-    for path in token_path:
-        if os.path.exists(path):
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    token = data.get("github_token") or data.get("token")
-                    if token:
-                        return token.strip()
-            except Exception:
-                pass 
-    return None
-# ----------------------------------------------------------------------
-GITHUB_TOKEN = _load_github_token()
 REPO_OWNER = "emwilson71"
-REPO_NAME = "CRD-GIT"
-BRANCH = "main"
-RAW_BASE = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH}/"
-# ----------------------------------------------------------------------
+REPO_NAME  = "CRD-GIT"
+BRANCH     = "main"
+RAW_BASE   = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{BRANCH}/"
+
 def _get_headers():
     return {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3.raw",
-        "User-Agent": "CRD-Updater/1.03"
+        "User-Agent": "CRD-Updater/1.02"
     }
-# ----------------------------------------------------------------------
+
 def check_for_remote_updates(parent_window):
     try:
         remote_versions_url = RAW_BASE + "config/versions.json"
@@ -117,13 +106,19 @@ def check_for_remote_updates(parent_window):
             if reply == QMessageBox.Yes:
                 download_and_restart(parent_window, needs_update)
         else:
-            QMessageBox.information(parent_window, "Up to Date", "You Have the Latest Version")
+            QMessageBox.information(parent_window, "Up to Date", "You are using the latest version.")
+
+    except requests.exceptions.RequestException as e:
+        QMessageBox.warning(parent_window, "Update Check Failed", f"Network error:\n{e}")
     except Exception as e:
         QMessageBox.warning(parent_window, "Update Check Failed", str(e))
-# ----------------------------------------------------------------------
+
 def download_and_restart(parent_window, files_to_update):
     try:
-        INSTALL_ROOT = r"C:\CRD"         
+        # Decide where files live. Change this if your install path is different.
+        INSTALL_ROOT = r"C:\CRD"          # <-- match your real install location
+        # Or use PROJECT_ROOT if everything is relative to the EXE
+
         updated = []
         for rel_path in files_to_update:
             local_path = os.path.join(INSTALL_ROOT, rel_path.replace("/", os.sep))
@@ -139,8 +134,11 @@ def download_and_restart(parent_window, files_to_update):
                 print(f"Updated: {rel_path}")
             else:
                 raise RuntimeError(f"Failed to download {rel_path} → HTTP {r.status_code}")
+
+        # Also update the local versions.json so we don't keep offering the same update
         local_versions_path = os.path.join(INSTALL_ROOT, "config", "versions.json")
         os.makedirs(os.path.dirname(local_versions_path), exist_ok=True)
+        # Re-fetch the authoritative versions.json
         r = requests.get(RAW_BASE + "config/versions.json", headers=_get_headers(), timeout=10)
         if r.status_code == 200:
             with open(local_versions_path, "wb") as f:
@@ -149,13 +147,13 @@ def download_and_restart(parent_window, files_to_update):
         QMessageBox.information(
             parent_window,
             "Success",
-            f"Updated {len(updated)} File(s).\nRestarting Now..."
+            f"Updated {len(updated)} file(s).\nRestarting now..."
         )
         restart_application()
 
     except Exception as e:
         QMessageBox.critical(parent_window, "Download Failed", str(e))
-# ----------------------------------------------------------------------
+
 def restart_application():
     try:
         python = sys.executable
