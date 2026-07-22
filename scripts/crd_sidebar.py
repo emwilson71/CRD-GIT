@@ -1,4 +1,6 @@
 """
+Version 1.00 Updated 07/22/26
+
 crd_sidebar.py for CRD (ew)
 Embedded Sidebar for Diagnostics
 Updated to parse 6-field Apptree.dat format (A,B,C,D,E,F,G)
