@@ -1,7 +1,8 @@
 # ------------------------------------------------------------------------
 """
-sid_manager.py
-ewilson@us.medical.canon 08/07/25
+crd_sid_manager.py
+PyQt6
+08/07/25 ew
 jsmyser made a few tweaks on 10/03/25
 JS_EDITS 25.12.24
 JS_EDITS 2026.03.05 Fixed tables from missing data during refresh.
@@ -13,32 +14,39 @@ import sys
 import json
 import os
 import re
-import subprocess  #Added by JS
+import subprocess
 from typing import Dict, List, Any
-from PyQt5.QtWidgets import (
+
+from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QDialog,
     QFormLayout, QHeaderView, QCheckBox, QComboBox, QGroupBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
-from PyQt5.QtGui import QPalette, QColor, QPixmap, QIcon
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize
+from PyQt6.QtGui import QPalette, QColor, QPixmap, QIcon
+
 from crd_embedded import CRDLogger, Styles
 import mysql.connector
 from cryptography.fernet import Fernet
-icon_path = lambda name: os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "../html/icons/", name))
+
+if getattr(sys, 'frozen', False):
+    os.chdir(os.path.dirname(sys.executable))
+else:
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+icon_path = lambda name: os.path.normpath(os.path.join(os.getcwd(), "images", "icons", name))
 # ------------------------------------------------------------------------
 class SIDDatabase:
     def __init__(self, filename='C:/CRD/data/siddb.json'):
         self.filename = filename
         self.create_database_if_not_exists()
-# ------------------------------------------------------------------------
+
     def create_database_if_not_exists(self):
         if not os.path.exists(self.filename):
             db = {"index": []}
             with open(self.filename, 'w') as file:
                 json.dump(db, file, indent=4)
-# ------------------------------------------------------------------------
+
     def read_database(self) -> Dict[str, List[Any]]:
         try:
             with open(self.filename, 'r') as file:
@@ -46,20 +54,20 @@ class SIDDatabase:
         except (FileNotFoundError, json.JSONDecodeError):
             self.create_database_if_not_exists()
             return self.read_database()
-# ------------------------------------------------------------------------
+
     def write_database(self, data: Dict[str, List[Any]]):
         with open(self.filename, 'w') as file:
             json.dump(data, file, indent=4)
-# ------------------------------------------------------------------------
+
     def add_entry(self, entry: Dict[str, Any]):
         database = self.read_database()
         database['index'].append(entry)
         self.write_database(database)
-# ------------------------------------------------------------------------
+
     def find_by_sid(self, sid: str) -> List[Dict[str, Any]]:
         database = self.read_database()
         return [entry for entry in database['index'] if entry['sid'] == sid]
-# ------------------------------------------------------------------------
+
     def update_entry(self, old_sid: str, updated_entry: Dict[str, Any]):
         database = self.read_database()
         for i, entry in enumerate(database['index']):
@@ -67,7 +75,7 @@ class SIDDatabase:
                 database['index'][i] = updated_entry
                 break
         self.write_database(database)
-# ------------------------------------------------------------------------
+
     def delete_entry_by_sid(self, sid: str):
         database = self.read_database()
         database['index'] = [entry for entry in database['index'] if entry['sid'] != sid]
@@ -80,6 +88,7 @@ class EntryDialog(QDialog):
         self.setFixedWidth(350)
         self.entry = entry or {}
         self.setStyleSheet(Styles.DIALOG)
+
         layout = QFormLayout()
         self.sid_input = QLineEdit(self.entry.get('sid', ''))
         self.site_name_input = QLineEdit(self.entry.get('site_name', ''))
@@ -92,15 +101,18 @@ class EntryDialog(QDialog):
         self.machine_input = QLineEdit(self.entry.get('machine', ''))
         self.sw_version_input = QLineEdit(self.entry.get('sw_version', ''))
         self.note_input = QLineEdit(', '.join(self.entry.get('note', [])))
+
         self.sid_input.setStyleSheet(Styles.SID_EDIT_BOX_STYLE)
         for edit in [self.site_name_input, self.sp_ip_input, self.host_ip_input,
                      self.display_ip_input, self.tunnel_input, self.modality_input,
                      self.port_input, self.machine_input, self.sw_version_input,
                      self.note_input]:
             edit.setStyleSheet(Styles.LINE_EDIT_STYLE)
-        self.sp_ip_input.setToolTip("Enter IPv4 addresses separated by commas, e.g., 192.168.1.1, 10.0.0.1")
-        self.host_ip_input.setToolTip("Enter IPv4 addresses separated by commas, e.g., 192.168.1.2, 10.0.0.2")
-        self.display_ip_input.setToolTip("Enter IPv4 addresses separated by commas, e.g., 192.168.1.3, 10.0.0.3")
+
+        self.sp_ip_input.setToolTip("Enter IPv4 Addresses Separated by Commas, e.g., 192.168.1.1, 10.0.0.1")
+        self.host_ip_input.setToolTip("Enter IPv4 Addresses Separated by Commas, e.g., 192.168.1.2, 10.0.0.2")
+        self.display_ip_input.setToolTip("Enter IPv4 Addresses Separated by Commas, e.g., 192.168.1.3, 10.0.0.3")
+
         layout.addRow(self.create_styled_label("SID *:"), self.sid_input)
         layout.addRow(self.create_styled_label("Site Name *:"), self.site_name_input)
         layout.addRow(self.create_styled_label("SP IP:"), self.sp_ip_input)
@@ -112,6 +124,7 @@ class EntryDialog(QDialog):
         layout.addRow(self.create_styled_label("Machine:"), self.machine_input)
         layout.addRow(self.create_styled_label("SW Version:"), self.sw_version_input)
         layout.addRow(self.create_styled_label("Note:"), self.note_input)
+
         button_layout = QHBoxLayout()
         ok_button = QPushButton("OK")
         cancel_button = QPushButton("Cancel")
@@ -121,16 +134,17 @@ class EntryDialog(QDialog):
         cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
+
         main_layout = QVBoxLayout()
         main_layout.addLayout(layout)
         main_layout.addLayout(button_layout)
         self.setLayout(main_layout)
-# ------------------------------------------------------------------------
+
     def create_styled_label(self, text):
         label = QLabel(text)
         label.setStyleSheet(Styles.STD_LABEL_STYLE)
         return label
-# ------------------------------------------------------------------------
+
     def get_entry(self):
         return {
             'sid': self.sid_input.text(),
@@ -150,23 +164,24 @@ class LookupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Site Name Lookup")
-        self.resize(900, 500)  #Changed by JS
+        self.resize(900, 500)
         self.setStyleSheet(Styles.DIALOG)
 
         layout = QVBoxLayout()
+
         site_layout = QHBoxLayout()
         site_label = QLabel("Site Name:")
         site_label.setStyleSheet(Styles.STD_LABEL_STYLE)
         site_layout.addWidget(site_label)
         self.site_input = QLineEdit()
         self.site_input.setStyleSheet(Styles.LINE_EDIT_STYLE)
-        self.site_input.setMinimumWidth(400)  
+        self.site_input.setMinimumWidth(400)
         site_layout.addWidget(self.site_input)
-        site_layout.addStretch() 
+        site_layout.addStretch()
         layout.addLayout(site_layout)
-        
+
         fields_layout = QHBoxLayout()
-        
+
         modality_label = QLabel("Modality:")
         modality_label.setStyleSheet(Styles.STD_LABEL_STYLE)
         modality_label.setFixedWidth(60)
@@ -176,8 +191,8 @@ class LookupDialog(QDialog):
         self.modality_dropdown.setStyleSheet(Styles.COMBO_BOX)
         self.modality_dropdown.setFixedWidth(60)
         fields_layout.addWidget(self.modality_dropdown)
-        fields_layout.addStretch()  
-# PRIMARY CE
+        fields_layout.addStretch()
+# PRIMARY FSE
         primary_ce_label = QLabel("Primary CE:")
         primary_ce_label.setStyleSheet(Styles.STD_LABEL_STYLE)
         fields_layout.addWidget(primary_ce_label)
@@ -185,22 +200,21 @@ class LookupDialog(QDialog):
         self.primary_ce_input.setStyleSheet(Styles.LINE_EDIT_STYLE)
         self.primary_ce_input.setMinimumWidth(150)
         fields_layout.addWidget(self.primary_ce_input)
-        fields_layout.addStretch()  
-# SERVICE ZONE
+        fields_layout.addStretch()
+# SERVICE ZONE (REGION)
         service_zone_label = QLabel("Service Zone:")
         service_zone_label.setStyleSheet(Styles.STD_LABEL_STYLE)
         fields_layout.addWidget(service_zone_label)
-        self.service_zone_input = QLineEdit("Midwest")   
+        self.service_zone_input = QLineEdit("Midwest")
         self.service_zone_input.setStyleSheet(Styles.LINE_EDIT_STYLE)
         self.service_zone_input.setMinimumWidth(150)
         fields_layout.addWidget(self.service_zone_input)
         fields_layout.addStretch()
-        layout.addLayout(fields_layout)         
+        layout.addLayout(fields_layout)
 
         for line_edit in [self.site_input, self.primary_ce_input, self.service_zone_input]:
             line_edit.returnPressed.connect(self.perform_query)
-
-# CONTRACT TYPE  # Added by JS
+# CONTRACT TYPE
         contract_layout = QHBoxLayout()
         contract_type_label = QLabel("Contract Type:")
         contract_type_label.setStyleSheet(Styles.STD_LABEL_STYLE)
@@ -216,7 +230,7 @@ class LookupDialog(QDialog):
                 button.setIconSize(QSize(24, 24))
                 button.setStyleSheet(Styles.BUTTON_STYLE)
                 button.setDefault(False)
-                button.setAutoDefault(False) 
+                button.setAutoDefault(False)
                 def toggle_all():
                     all_checked = all(self.contract_type_checks[opt].isChecked() for opt in options if opt != "Toggle All")
                     for opt in options:
@@ -236,7 +250,6 @@ class LookupDialog(QDialog):
         contract_layout.addWidget(checkbox_group)
         contract_layout.addStretch()
         layout.addLayout(contract_layout)
-        
 # QUERY BUTTON
         button_layout = QHBoxLayout()
         query_button = QPushButton("QUERY")
@@ -247,15 +260,14 @@ class LookupDialog(QDialog):
         query_button.clicked.connect(self.perform_query)
         button_layout.addStretch()
         button_layout.addWidget(query_button)
-
-# LOAD TO CRD BUTTON # Added by JS        
+# LOAD TO CRD BUTTON
         if isinstance(parent, SIDDatabaseWindow) and parent.main_app and type(parent.main_app).__name__ == "DesktopApp":
             load_to_crd_button = QPushButton("Load to CRD")
             load_to_crd_button.setIcon(QIcon(icon_path("download.png")))
             load_to_crd_button.setIconSize(QSize(24, 24))
             load_to_crd_button.setStyleSheet(Styles.BUTTON_STYLE)
             load_to_crd_button.setDefault(False)
-            load_to_crd_button.setAutoDefault(False) 
+            load_to_crd_button.setAutoDefault(False)
             load_to_crd_button.setFixedWidth(160)
             load_to_crd_button.clicked.connect(self.handle_double_click)
             button_layout.addSpacing(20)
@@ -263,44 +275,49 @@ class LookupDialog(QDialog):
             button_layout.addSpacing(20)
         else:
             button_layout.addSpacing(200)
-
-# ADD TO DATABASE BUTTON  # Added by JS                
+# ADD TO DATABASE BUTTON
         add_to_db_button = QPushButton("Add to SID(s) to Local Database")
         add_to_db_button.setIcon(QIcon(icon_path("add.png")))
         add_to_db_button.setIconSize(QSize(24, 24))
         add_to_db_button.setStyleSheet(Styles.BUTTON_STYLE)
         add_to_db_button.setDefault(False)
-        add_to_db_button.setAutoDefault(False)         
+        add_to_db_button.setAutoDefault(False)
         add_to_db_button.setFixedWidth(260)
         add_to_db_button.clicked.connect(self.add_to_database)
         button_layout.addWidget(add_to_db_button)
-        button_layout.addStretch()      
+        button_layout.addStretch()
         layout.addLayout(button_layout)
-        
-# GRID  #JS added contract type, QTableWidget.ExtendedSelection, QTableWidget.SelectRows, Sorting, and custom mouse press event.
+# GRID
         self.result_table = QTableWidget()
         self.result_table.setColumnCount(6)
-        self.result_table.setHorizontalHeaderLabels(["SID", "Site Name", "Model", "Primary CE", "Service Zone", "Contract Type"])
-        self.result_table.setStyleSheet("QTableWidget { border: 1px solid #ccc; } QTableWidget::item { padding: 5px; }")
-        self.result_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.result_table.setSelectionMode(QTableWidget.ExtendedSelection)
-        self.result_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.result_table.setHorizontalHeaderLabels(
+            ["SID", "Site Name", "Model", "Primary CE", "Service Zone", "Contract Type"]
+        )
+        self.result_table.setStyleSheet(
+            "QTableWidget { border: 1px solid #ccc; } QTableWidget::item { padding: 5px; }"
+        )
+        self.result_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.result_table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
+        self.result_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.result_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.result_table.setSortingEnabled(True)
+# ------------------------------------------------------------------------
         def custom_mouse_press_event(event):
-            if event.buttons() == Qt.LeftButton and not (event.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)):
+            if event.buttons() == Qt.MouseButton.LeftButton and not (
+                event.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+            ):
                 self.result_table.clearSelection()
             QTableWidget.mousePressEvent(self.result_table, event)
+
         self.result_table.mousePressEvent = custom_mouse_press_event
         self.result_table.setColumnWidth(0, 100)
-        self.result_table.setColumnWidth(1, 200) 
+        self.result_table.setColumnWidth(1, 200)
         self.result_table.setColumnWidth(2, 200)
         self.result_table.setColumnWidth(3, 150)
         self.result_table.setColumnWidth(4, 150)
         self.result_table.setColumnWidth(5, 150)
         self.result_table.itemDoubleClicked.connect(self.handle_double_click)
         layout.addWidget(self.result_table)
-        
 # CLOSE
         close_button_layout = QHBoxLayout()
         close_button = QPushButton("Close")
@@ -312,8 +329,8 @@ class LookupDialog(QDialog):
         close_button_layout.addWidget(close_button)
         layout.addLayout(close_button_layout)
         self.setLayout(layout)
-        
-        self.result_table.sortItems(1) # JS_EDITS 2026.03.05 Added to sort by site name. 
+
+        self.result_table.sortItems(1)
 # ------------------------------------------------------------------------
     def get_credentials(self):
         try:
@@ -329,10 +346,10 @@ class LookupDialog(QDialog):
                 if line:
                     key, value = line.split("=", 1)
                     credentials[key.strip()] = value.strip()
-            
+
             return {
                 "database": credentials.get("database", ""),
-                "host": "10.94.100.239", 
+                "host": "10.94.100.239",
                 "passwd": credentials.get("passwd", ""),
                 "user": credentials.get("user", "")
             }
@@ -340,24 +357,30 @@ class LookupDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to Load Credentials: {str(e)}")
             return None
 # ------------------------------------------------------------------------
-    def perform_query(self):  # JS Added contract_type. 
+    def perform_query(self):  # JS Added contract_type.
         self.result_table.setRowCount(0)
         site_name = self.site_input.text().strip()
         modality = self.modality_dropdown.currentText().strip()
         primary_ce = self.primary_ce_input.text().strip()
         service_zone = self.service_zone_input.text().strip()
-        self.result_table.setSortingEnabled(False) # JS_EDITS 2026.03.05 Added to prevent missing items in table.
+        self.result_table.setSortingEnabled(False)  # JS_EDITS 2026.03.05
 
-        # Get selected items from checkboxes
-        contract_type = [opt for opt, check in self.contract_type_checks.items() if check.isChecked() and opt not in ["🔀 Toggle All"]]
-    
-        
+        contract_type = [
+            opt for opt, check in self.contract_type_checks.items()
+            if check.isChecked() and opt not in ["🔀 Toggle All"]
+        ]
+
         if not (site_name or modality != " " or primary_ce or service_zone):
-            QMessageBox.warning(self, "Warning", "Please Enter One Search Critera (Site Name, Modality, Primary CE, or Service Zone)")
+            QMessageBox.warning(
+                self, "Warning",
+                "Please Enter One Search Critera (Site Name, Modality, Primary CE, or Service Zone)"
+            )
             return
+
         creds = self.get_credentials()
         if not creds:
             return
+
         try:
             conn = mysql.connector.connect(
                 host=creds["host"],
@@ -369,8 +392,7 @@ class LookupDialog(QDialog):
             query = "SELECT SID, SITE_NAME, MODEL, PRIMARY_CE, SERVICE_ZONE, CONTRACT_TYPE FROM VPN_INSTALLBASE_V"
             params = []
             conditions = []
-            
-        
+
             if site_name:
                 conditions.append("LOWER(SITE_NAME) LIKE LOWER(%s)")
                 params.append(f"%{site_name}%")
@@ -387,10 +409,9 @@ class LookupDialog(QDialog):
                 like_conditions = [f"LOWER(CONTRACT_TYPE) LIKE LOWER(%s)" for _ in contract_type]
                 conditions.append("(" + " OR ".join(like_conditions) + ")")
                 params.extend([f"%{ct}%" for ct in contract_type])
-
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             cursor.execute(query, tuple(params))
             results = cursor.fetchall()
             self.result_table.setRowCount(len(results))
@@ -403,33 +424,32 @@ class LookupDialog(QDialog):
                 self.result_table.setItem(row_idx, 5, QTableWidgetItem(str(contract_type) if contract_type is not None else ""))
             cursor.close()
             conn.close()
-            self.result_table.setSortingEnabled(True) # JS_EDITS 2026.03.05 Added to prevent missing items in table.
+            self.result_table.setSortingEnabled(True)  # JS_EDITS 2026.03.05
         except mysql.connector.Error as e:
-            QMessageBox.critical(self, "Error", f"Database error: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Database Error: {str(e)}")
 # ------------------------------------------------------------------------
-    def handle_double_click(self, item=None): # Modified by JS
+    def handle_double_click(self, item=None):  # Modified by JS
         try:
             selected_rows = sorted(set(index.row() for index in self.result_table.selectedIndexes()))
             if len(selected_rows) == 0:
-                raise ValueError("No row selected")
+                raise ValueError("No Row Selected")
             if len(selected_rows) > 1:
-                raise ValueError("Only one row can be selected")
-            row = selected_rows[0]  # Ensure row is an integer
+                raise ValueError("Only One Row Can be Selected")
+            row = selected_rows[0]
             sid_item = self.result_table.item(row, 0)
             if not sid_item:
-                raise ValueError("SID is missing in row")
+                raise ValueError("SID is Missing In Row")
             sid = sid_item.text()
             parent = self.parent()
             if isinstance(parent, SIDDatabaseWindow) and parent.main_app and type(parent.main_app).__name__ == "DesktopApp":
                 if hasattr(parent.main_app, 'edit_box_sid'):
                     parent.main_app.edit_box_sid.setText(sid)
                 parent.main_app.query_ip_addresses()
-                self.close()                
+                self.close()
             else:
                 self.add_to_database()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to process selection: {str(e)}")
-
 # ------------------------------JS Added add_to_database & query_ip_addresses below ----------------------
     def query_ip_addresses(self, sid):
         try:
@@ -438,7 +458,6 @@ class LookupDialog(QDialog):
             if not os.path.exists(script_path):
                 raise OSError(f"Script File Does Not Exist: {script_path}")
             env = os.environ.copy()
-            # Use creds_dict if available, else dummy values
             if hasattr(self, 'creds_dict') and self.creds_dict and "SP_WIN10" in self.creds_dict:
                 env['SPUSER'] = self.creds_dict["SP_WIN10"].get("credentials", {}).get("host_user", "IV_Service_User")
                 env['SPPASS'] = self.creds_dict["SP_WIN10"].get("credentials", {}).get("host_pass", "SU_InnerVision2020")
@@ -454,13 +473,12 @@ class LookupDialog(QDialog):
             )
             json_data = result.stdout.strip()
             data = json.loads(json_data)
-            # Strip PreInstall: from HospName
             if data.get("HospName", "").startswith("PreInstall:"):
                 data["HospName"] = data["HospName"][len("PreInstall:"):].strip()
             return data
         except Exception as e:
             raise
-
+# ------------------------------------------------------------------------
     def add_to_database(self):
         errors = []
         successes = []
@@ -468,14 +486,11 @@ class LookupDialog(QDialog):
         if not selected_rows:
             QMessageBox.warning(self, "Warning", "No rows selected.")
             return
-        
-        # Suppress QMessageBox and CustomMessageBox popups
-        original_exec = QMessageBox.exec_
+        original_exec = QMessageBox.exec
         def no_op(*args, **kwargs):
             pass
-        QMessageBox.exec_ = no_op
-        QMessageBox.exec_custom = no_op  # Suppress CustomMessageBox
-        
+        QMessageBox.exec = no_op
+
         parent = self.parent()
         for row in selected_rows:
             try:
@@ -489,12 +504,10 @@ class LookupDialog(QDialog):
                     if parent.main_app.query_ip_addresses():
                         parent.main_app.add_to_sid_database()
                         successes.append(f"SID-{sid}")
-                        parent.load_entries()  
-                    # Check if SID was processed
+                        parent.load_entries()
                     else:
-                        raise ValueError("SID processing failed")
+                        raise ValueError("SID Processing Failed")
                 else:
-                    # Local processing using SIDDatabase
                     data = self.query_ip_addresses(sid)
                     entry = {
                         "sid": sid,
@@ -516,49 +529,47 @@ class LookupDialog(QDialog):
                         parent.database.update_entry(sid, entry)
                     else:
                         parent.database.add_entry(entry)
-                    # Verify entry was added/updated
                     if parent.database.find_by_sid(sid):
                         successes.append(f"SID-{sid}")
-                        parent.load_entries()  # Added to refresh
+                        parent.load_entries()
                     else:
                         raise ValueError("SID processing failed")
             except Exception as e:
-                errors.append(f"Row {row + 1} SID-{sid}")  # Updated error message
-                print(f"Add to DB Failed: Row {row + 1} SID-{sid}: {str(e)}")
-        
-        # Restore QMessageBox
-        QMessageBox.exec_ = original_exec
-        # Clean up exec_custom safely
-        if hasattr(QMessageBox, 'exec_custom'):
-            delattr(QMessageBox, 'exec_custom')
-        
+                errors.append(f"Row {row + 1} SID-{sid}")
+
+        QMessageBox.exec = original_exec
         message = []
         if successes:
-            message.append(f"SIDs processed successfully: {', '.join(successes)}")
+            message.append(f"SIDs Processed Successfully: {', '.join(successes)}")
         if errors:
-            message.append(f"\nFailed to process: {', '.join(errors)}")
-        
+            message.append(f"\nFailed to Process: {', '.join(errors)}")
+
         if message:
-            QMessageBox.information(self, "Operation Result", "\n".join(message)) if successes and not errors else QMessageBox.critical(self, "Operation Result", "\n".join(message))
+            if successes and not errors:
+                QMessageBox.information(self, "Operation Result", "\n".join(message))
+            else:
+                QMessageBox.critical(self, "Operation Result", "\n".join(message))
         elif not successes:
             QMessageBox.warning(self, "Warning", "No SIDs processed.")
 
 # ------------------------------------------------------------------------
 class SIDDatabaseWindow(QWidget):
     close_requested = pyqtSignal()
+
     def __init__(self, sid_manager=None, main_app=None, tab_widget=None):
         super().__init__()
         self.sid_manager = sid_manager
         self.main_app = main_app
         self.tab_widget = tab_widget
-        self.setWindowTitle("SID Database") # Added by JS
-        self.setGeometry(100, 100, 900, 500) # Added by JS
+        self.setWindowTitle("SID Database")
+        self.setGeometry(100, 100, 900, 500)
         self.database = SIDDatabase()
+
         layout = QVBoxLayout()
         layout.setContentsMargins(4, 4, 4, 4)
         header_layout = QHBoxLayout()
-        
         layout.addLayout(header_layout)
+
         input_layout = QHBoxLayout()
         self.sid_input = QLineEdit()
         self.site_name_input = QLineEdit()
@@ -570,22 +581,25 @@ class SIDDatabaseWindow(QWidget):
         self.site_name_input.setFixedWidth(300)
         self.sid_input.textChanged.connect(self.filter_entries)
         self.site_name_input.textChanged.connect(self.filter_entries)
+
         sid_label = QLabel("SID:")
         sid_label.setObjectName("inputLabel")
         site_name_label = QLabel("SITE NAME:")
         site_name_label.setObjectName("inputLabel")
+
         lookup_button = QPushButton("LOOKUP")
         lookup_button.setIcon(QIcon(icon_path("search.png")))
         lookup_button.setIconSize(QSize(24, 24))
         lookup_button.setStyleSheet(Styles.BUTTON_STYLE)
         lookup_button.setFixedSize(110, 30)
         lookup_button.clicked.connect(self.show_lookup_dialog)
+
         clear_button = QPushButton("CLEAR")
         clear_button.setIcon(QIcon(icon_path("x.png")))
         clear_button.setStyleSheet(Styles.BUTTON_STYLE)
         clear_button.setFixedSize(110, 30)
         clear_button.clicked.connect(self.clear_inputs)
-  
+
         input_layout.addWidget(sid_label)
         input_layout.addWidget(self.sid_input)
         input_layout.addWidget(site_name_label)
@@ -594,27 +608,28 @@ class SIDDatabaseWindow(QWidget):
         input_layout.addWidget(clear_button)
         input_layout.addStretch()
         layout.addLayout(input_layout)
-        
+
         self.checkbox_close = QCheckBox("Close SID DATABASE On Selection")
-        if self.main_app is not None: # Added by JS
-            self.checkbox_close.setChecked(False) # ALWAYS ENABLED
+        if self.main_app is not None:
+            self.checkbox_close.setChecked(False)
         self.checkbox_close.setStyleSheet("color: white; font-size: 14px;")
-        self.checkbox_close.setVisible(False) # ALWAYS HIDDEN
+        self.checkbox_close.setVisible(False)
         layout.addWidget(self.checkbox_close)
-        
+
         self.table = QTableWidget()
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels([
             "SID", "Site Name", "SP IP", "Host IP", "Modality", "Machine", "SW Version"
         ])
-        
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table.setSortingEnabled(True)
+
         if self.main_app is not None:
             self.table.itemClicked.connect(self.populate_main_app)
-            
-        btn_layout = QHBoxLayout()         
+
+        btn_layout = QHBoxLayout()
         add_btn = QPushButton("ADD")
         add_btn.setIcon(QIcon(icon_path("add.png")))
         add_btn.setIconSize(QSize(24, 24))
@@ -630,9 +645,8 @@ class SIDDatabaseWindow(QWidget):
         export_btn = QPushButton("EXPORT")
         export_btn.setIcon(QIcon(icon_path("upload.png")))
         export_btn.setIconSize(QSize(24, 24))
-        
-        buttons = [add_btn, edit_btn, delete_btn, refresh_btn, export_btn]
 
+        buttons = [add_btn, edit_btn, delete_btn, refresh_btn, export_btn]
         for btn in buttons:
             btn.setFixedHeight(30)
             btn.setFixedWidth(130)
@@ -640,7 +654,6 @@ class SIDDatabaseWindow(QWidget):
 
         if hasattr(Styles, 'add_button'):
             add_btn.setStyleSheet(Styles.add_button)
-            
         if hasattr(Styles, 'edit_button'):
             edit_btn.setStyleSheet(Styles.edit_button)
         if hasattr(Styles, 'delete_button'):
@@ -663,32 +676,31 @@ class SIDDatabaseWindow(QWidget):
 
         layout.addWidget(self.table)
         layout.addLayout(btn_layout)
-
         self.setLayout(layout)
+
         self.load_entries()
         self.apply_dark_theme()
-        self.table.sortItems(1)  # JS_EDITS 2026.03.05 Added to sort initial table by site name.
-
+        self.table.sortItems(1)  # JS_EDITS 2026.03.05
 # ------------------------------------------------------------------------
     def show_lookup_dialog(self):
         dialog = LookupDialog(self)
-        dialog.exec_()
+        dialog.exec()
 # ------------------------------------------------------------------------
     def apply_dark_theme(self):
         palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, Qt.white)
-        palette.setColor(QPalette.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ToolTipBase, QColor(64, 64, 64))
-        palette.setColor(QPalette.ToolTipText, Qt.white)
-        palette.setColor(QPalette.Text, Qt.white)
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, Qt.white)
-        palette.setColor(QPalette.BrightText, Qt.red)
-        palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.HighlightedText, Qt.black)
+        palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Base, QColor(25, 25, 25))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(64, 64, 64))
+        palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+        palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
         self.setPalette(palette)
         self.setStyleSheet("""
             QTableWidget {
@@ -741,6 +753,7 @@ class SIDDatabaseWindow(QWidget):
                 font-size: 14px;
             }
         """)
+
 # ------------------------------------------------------------------------
     def clear_inputs(self):
         self.sid_input.clear()
@@ -751,7 +764,6 @@ class SIDDatabaseWindow(QWidget):
         self.sid_input.clear()
         self.site_name_input.clear()
         self.filter_entries()
-        
 # ------------------------------------------------------------------------
     def filter_entries(self):
         sid_filter = self.sid_input.text().lower()
@@ -760,7 +772,7 @@ class SIDDatabaseWindow(QWidget):
         try:
             database = self.database.read_database()
             entries = database.get('index', [])
-            self.table.setSortingEnabled(False) # JS_EDITS 2026.03.05 Added to prevent missing items in table.
+            self.table.setSortingEnabled(False)
             for entry in entries:
                 if (not sid_filter or sid_filter in entry.get('sid', '').lower()) and \
                    (not site_filter or site_filter in entry.get('site_name', '').lower()):
@@ -774,8 +786,7 @@ class SIDDatabaseWindow(QWidget):
                     self.table.setItem(row, 5, QTableWidgetItem(entry.get('machine', '')))
                     self.table.setItem(row, 6, QTableWidgetItem(entry.get('sw_version', '')))
             self.table.resizeColumnsToContents()
-            self.table.setSortingEnabled(True) # JS_EDITS 2026.03.05 Added to prevent missing items in table.
-            
+            self.table.setSortingEnabled(True)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed To Filter Entries: {str(e)}")
 # ------------------------------------------------------------------------
@@ -870,7 +881,7 @@ Scanner={machine}
 # ------------------------------------------------------------------------
     def export_to_csv(self):
         import csv
-        from PyQt5.QtWidgets import QFileDialog
+        from PyQt6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getSaveFileName(self, "Save CSV", "", "CSV Files (*.csv)")
         if path:
             try:
@@ -899,13 +910,9 @@ Scanner={machine}
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed To Export CSV: {str(e)}")
 # ------------------------------------------------------------------------
-    #def on_close(self):
-        #self.close_requested.emit()
-        #self.close()
-# ------------------------------------------------------------------------
     def add_entry(self):
         dialog = EntryDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             try:
                 entry = dialog.get_entry()
                 self.database.add_entry(entry)
@@ -922,9 +929,9 @@ Scanner={machine}
             msg = QMessageBox(self)
             msg.setWindowTitle("Error")
             msg.setText("Please Select An Entry To Edit")
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Icon.Warning)
             msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-            msg.exec_()
+            msg.exec()
             return
         old_sid = self.table.item(current_row, 0).text()
         entries = self.database.find_by_sid(old_sid)
@@ -932,13 +939,13 @@ Scanner={machine}
             msg = QMessageBox(self)
             msg.setWindowTitle("Error")
             msg.setText("Entry Not Found")
-            msg.setIcon(QMessageBox.Warning)
+            msg.setIcon(QMessageBox.Icon.Warning)
             msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-            msg.exec_()
+            msg.exec()
             return
         entry = entries[0]
         dialog = EntryDialog(self, entry)
-        if dialog.exec_() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             try:
                 updated_entry = dialog.get_entry()
                 self.database.update_entry(old_sid, updated_entry)
@@ -946,29 +953,29 @@ Scanner={machine}
             except Exception as e:
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Error")
-                msg.setText(f"Database error: {str(e)}")
-                msg.setIcon(QMessageBox.Critical)
+                msg.setText(f"Database Error: {str(e)}")
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-                msg.exec_()
+                msg.exec()
 # ------------------------------------------------------------------------
     def delete_entry(self):
         current_row = self.table.currentRow()
         if current_row < 0:
             msg = QMessageBox(self)
             msg.setWindowTitle("Error")
-            msg.setText("Please Select a SID to delete")
-            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Please Select a SID to Delete")
+            msg.setIcon(QMessageBox.Icon.Warning)
             msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-            msg.exec_()
+            msg.exec()
             return
         msg = QMessageBox(self)
         msg.setWindowTitle("Confirm Deletion")
         msg.setText("Are You Sure You Want To Delete This SID?")
-        msg.setIcon(QMessageBox.Question)
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-        reply = msg.exec_()
-        if reply == QMessageBox.Yes:
+        reply = msg.exec()
+        if reply == QMessageBox.StandardButton.Yes:
             sid = self.table.item(current_row, 0).text()
             try:
                 self.database.delete_entry_by_sid(sid)
@@ -976,21 +983,21 @@ Scanner={machine}
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Success")
                 msg.setText(f"Entry with SID {sid} has been deleted.")
-                msg.setIcon(QMessageBox.Information)
+                msg.setIcon(QMessageBox.Icon.Information)
                 msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-                msg.exec_()
+                msg.exec()
             except Exception as e:
                 msg = QMessageBox(self)
                 msg.setWindowTitle("Error")
                 msg.setText(f"Failed To Delete: {str(e)}")
-                msg.setIcon(QMessageBox.Critical)
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setStyleSheet(Styles.MESSAGE_BOX_STYLE)
-                msg.exec_()
+                msg.exec()
 # ------------------------------------------------------------------------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
     window = SIDDatabaseWindow()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 # ------------------------------------------------------------------------

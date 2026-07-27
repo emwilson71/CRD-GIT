@@ -4,9 +4,10 @@
     "remote_locations": [],
     "local_locations": [],
     "last_selections": {
-        "sid": "30099670",
+        "sid": "30024991",
         "filechecks": [
-            "Magnet Logs (SP)"
+            "RM Logs (SP)",
+            "Acqman Logs (SM)"
         ],
         "filemode": "File Checks",
         "ip_type": "",

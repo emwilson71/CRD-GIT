@@ -4,34 +4,6 @@ crd_connect.py (ew)
 Establish connection to SP for SM Scripts
 Version 1.10 Updated 02/03/26
 """
-# USAGE
-"""
-Use conn as a ref variable for open and close connection
-import crd_connect
-connect_to_sp()
-conn, successful_creds, current_data = crd_connect.connect_to_sp()
-if conn is None:
-    print("Failed to connect to SP computer.")
-    
-else:
-# TEST CONNECTION TO VERIFY
-    if isinstance(conn, paramiko.SFTPClient):
-        files = conn.listdir('/some/path')
-        print(files)
-    elif isinstance(conn, paramiko.SSHClient):
-        stdin, stdout, stderr = conn.exec_command("dir C:\\")
-        output = stdout.read().decode()
-        print(output)  
-    elif isinstance(conn, ftplib.FTP):
-        files = conn.nlst()
-        print(files)
-    if isinstance(conn, paramiko.SFTPClient):
-        conn.close()
-    elif isinstance(conn, paramiko.SSHClient):
-        conn.close()
-    elif isinstance(conn, ftplib.FTP):
-        conn.quit()
-"""
 # ------------------------------------------------------------------------
 import os
 import paramiko
@@ -185,7 +157,7 @@ def establish_connection(spip, creds_dict, test_path=r"C:\InnerVision.dir\Comm.d
                         raise RuntimeError(f"Directory check error: {check_error}")
                     logger.info(f"[CONNECT] SSH Connection Established and directory check successful", extra={"tag": tag})
                     
-                    conn = client  # Return SSH client
+                    conn = client  
                     successful_creds = credentials
                     break
               

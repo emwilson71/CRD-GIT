@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
 """
 crd_verctrl.py
+PyQt6
 Version 1.00 Updated 07/21/26
 """
 # ---------------------------------------------------------------------------
@@ -11,14 +12,14 @@ import ast
 from datetime import datetime
 from pathlib import Path
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QPushButton, QLabel, QLineEdit,
     QFileDialog, QMessageBox, QHeaderView, QAbstractItemView,
     QDialog, QTextEdit, QDialogButtonBox, QStatusBar, QCheckBox
 )
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QColor, QPalette, QBrush
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QColor, QPalette, QBrush
 
 try:
     from crd_embedded import Styles
@@ -35,7 +36,6 @@ def parse_version_info(filepath: str) -> tuple:
     version = "—"
     updated = "—"
     snippet = ""
-
     try:
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             lines = []
@@ -45,7 +45,6 @@ def parse_version_info(filepath: str) -> tuple:
                 lines.append(line)
             content = "".join(lines)
             snippet = content[:500]
-
         try:
             tree = ast.parse(content)
             doc = ast.get_docstring(tree)
@@ -55,7 +54,6 @@ def parse_version_info(filepath: str) -> tuple:
                     return m.group(1), m.group(2), doc[:300]
         except Exception:
             pass
-
         m = HEADER_RE.search(content)
         if m:
             version = m.group(1)
@@ -94,7 +92,6 @@ def update_file_header(filepath: str, new_version: str, new_date: str) -> bool:
                 re.IGNORECASE
             ), rf'\g<1>{new_version}\g<2>{new_date}'),
         ]
-
         new_content = content
         replaced = False
         for pat, repl in patterns:
@@ -129,10 +126,8 @@ def update_file_header(filepath: str, new_version: str, new_date: str) -> bool:
                 )
                 new_content = new_doc + rest.lstrip("\n")
                 replaced = True
-
         if not replaced:
             return False
-
         with open(filepath, "w", encoding="utf-8", newline="\n") as f:
             f.write(new_content)
         return True
@@ -183,7 +178,6 @@ def collect_scripts(root: str, recursive: bool = True) -> list:
                     "updated": upd,
                     "snippet": snip,
                 })
-
     results.sort(key=lambda x: x["rel"].lower())
     return results
 # ---------------------------------------------------------------------------
@@ -194,26 +188,23 @@ class FileEditorDialog(QDialog):
         self.setWindowTitle(f"Edit — {os.path.basename(filepath)}")
         self.resize(900, 700)
         self.setStyleSheet(Styles.POPUP_DIALOG + Styles.TEXT_EDIT_STYLE)
-
         layout = QVBoxLayout(self)
-
         info = QLabel(filepath)
         info.setStyleSheet(Styles.STD_LABEL_STYLE)
         info.setWordWrap(True)
         layout.addWidget(info)
-
         self.editor = QTextEdit()
         self.editor.setStyleSheet(Styles.TEXT_EDIT_STYLE)
         self.editor.setFont(QFont("Consolas", 11))
-        self.editor.setLineWrapMode(QTextEdit.NoWrap)
+        self.editor.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
         layout.addWidget(self.editor)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.setStyleSheet(Styles.BUTTON_STYLE)
         buttons.accepted.connect(self.save_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
         self._load()
 # ---------------------------------------------------------------------------
     def _load(self):
@@ -237,11 +228,9 @@ class VersionControlWindow(QMainWindow):
         self.setWindowTitle("CRD Version Control")
         self.resize(700, 400)
         self.setMinimumSize(700, 600)
-
         self.root_dir = initial_root or os.getcwd()
         self.recursive = True
         self.scripts = []
-
         self._build_ui()
         self._apply_styles()
         self.refresh()
@@ -257,7 +246,6 @@ class VersionControlWindow(QMainWindow):
         path_label = QLabel("Root:")
         path_label.setStyleSheet(Styles.STD_LABEL_STYLE)
         path_row.addWidget(path_label)
-
         self.path_edit = QLineEdit(self.root_dir)
         self.path_edit.setStyleSheet(Styles.LINE_EDIT_STYLE)
         self.path_edit.setReadOnly(True)
@@ -280,34 +268,32 @@ class VersionControlWindow(QMainWindow):
         self.chk_recursive.setStyleSheet("color: white; font-weight: bold;")
         self.chk_recursive.stateChanged.connect(self._on_recursive_changed)
         path_row.addWidget(self.chk_recursive)
-
         main_layout.addLayout(path_row)
 
         title = QLabel("Python Script Table")
         title.setStyleSheet(Styles.DYNAMIC_HEADER_STYLE)
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(title)
 
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["File", "Version", "Updated", ""])
         self.table.setStyleSheet(getattr(Styles, "TABLE_STYLE", ""))
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(True)
-        self.table.setFocusPolicy(Qt.StrongFocus)
+        self.table.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.Fixed)
-        header.setSectionResizeMode(1, QHeaderView.Fixed)
-        header.setSectionResizeMode(2, QHeaderView.Fixed)
-        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
         self.table.setColumnWidth(0, 200)
         self.table.setColumnWidth(1, 200)
         self.table.setColumnWidth(2, 200)
         self.table.setColumnWidth(3, 50)
-
         self.table.cellDoubleClicked.connect(self._on_double_click)
         main_layout.addWidget(self.table, 1)
 
@@ -316,18 +302,11 @@ class VersionControlWindow(QMainWindow):
         self.lbl_count.setStyleSheet(Styles.STD_LABEL_STYLE)
         bottom.addWidget(self.lbl_count)
         bottom.addStretch()
-        """
-        btn_bump = QPushButton("Bump Selected")
-        btn_bump.setStyleSheet(Styles.BUTTON_STYLE)
-        btn_bump.setToolTip("Increment version + set today's date")
-        btn_bump.clicked.connect(self.bump_selected)
-        bottom.addWidget(btn_bump)
-        """
+
         btn_edit = QPushButton("Edit Selected")
         btn_edit.setStyleSheet(Styles.BUTTON_STYLE)
         btn_edit.clicked.connect(self.edit_selected)
         bottom.addWidget(btn_edit)
-
         main_layout.addLayout(bottom)
 
         self.status = QStatusBar()
@@ -354,21 +333,18 @@ class VersionControlWindow(QMainWindow):
     def refresh(self):
         self.status.showMessage("Scanning…")
         QApplication.processEvents()
-
         self.scripts = collect_scripts(self.root_dir, recursive=self.recursive)
         self._populate_table()
         self.lbl_count.setText(f"{len(self.scripts)} script{'s' if len(self.scripts) != 1 else ''}")
-        self.status.showMessage(f"Loaded {len(self.scripts)} scripts from {self.root_dir}")
+        self.status.showMessage(f"Loaded {len(self.scripts)} Scripts From {self.root_dir}")
 # ---------------------------------------------------------------------------
     def _populate_table(self):
         self.table.setRowCount(0)
         self.table.setRowCount(len(self.scripts))
-
         plus_style = getattr(Styles, "PLUS_BUTTON_STYLE", Styles.BUTTON_STYLE)
-
         for row, info in enumerate(self.scripts):
             item_file = QTableWidgetItem(info["rel"])
-            item_file.setData(Qt.UserRole, info["path"])
+            item_file.setData(Qt.ItemDataRole.UserRole, info["path"])
             tip = info["path"]
             if info["snippet"]:
                 tip += "\n\n" + info["snippet"][:200]
@@ -376,24 +352,23 @@ class VersionControlWindow(QMainWindow):
             self.table.setItem(row, 0, item_file)
 
             item_ver = QTableWidgetItem(info["version"])
-            item_ver.setTextAlignment(Qt.AlignCenter)
+            item_ver.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if info["version"] == "—":
                 item_ver.setForeground(QBrush(QColor("#888888")))
             self.table.setItem(row, 1, item_ver)
 
             item_upd = QTableWidgetItem(info["updated"])
-            item_upd.setTextAlignment(Qt.AlignCenter)
+            item_upd.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if info["updated"] == "—":
                 item_upd.setForeground(QBrush(QColor("#888888")))
             self.table.setItem(row, 2, item_upd)
 
             btn = QPushButton("+")
             btn.setStyleSheet(plus_style)
-            btn.setToolTip("Bump version, update date, then open editor")
-            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip("Bump Version, Update Date, Then Open Editor")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda checked=False, r=row: self._on_plus_clicked(r))
             self.table.setCellWidget(row, 3, btn)
-
             self.table.setRowHeight(row, 34)
 # ---------------------------------------------------------------------------
     def _get_selected_row(self) -> int:
@@ -429,7 +404,6 @@ class VersionControlWindow(QMainWindow):
         ver, _, _ = parse_version_info(filepath)
         new_ver = "1.00" if ver == "—" else bump_version(ver)
         new_date = today_str()
-
         if not update_file_header(filepath, new_ver, new_date):
             QMessageBox.warning(
                 self, "Update Failed",
@@ -437,17 +411,14 @@ class VersionControlWindow(QMainWindow):
                 "Expected a Line \nVersion 1.00 Updated 07/17/26"
             )
             return
-
         new_ver2, new_upd2, snip = parse_version_info(filepath)
         self.scripts[row]["version"] = new_ver2
         self.scripts[row]["updated"] = new_upd2
         self.scripts[row]["snippet"] = snip
-
         self.table.item(row, 1).setText(new_ver2)
         self.table.item(row, 1).setForeground(QBrush(QColor("white")))
         self.table.item(row, 2).setText(new_upd2)
         self.table.item(row, 2).setForeground(QBrush(QColor("white")))
-
         self.status.showMessage(f"Bumped {os.path.basename(filepath)} → {new_ver2} ({new_upd2})")
 # ---------------------------------------------------------------------------
     def _bump_and_edit(self, filepath: str, row: int):
@@ -463,38 +434,33 @@ class VersionControlWindow(QMainWindow):
 # ---------------------------------------------------------------------------
     def _open_editor(self, filepath: str):
         dlg = FileEditorDialog(filepath, self)
-        dlg.exec_()
+        dlg.exec()
 # ---------------------------------------------------------------------------
 def main():
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
     palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(32, 32, 32))
-    palette.setColor(QPalette.WindowText, Qt.white)
-    palette.setColor(QPalette.Base, QColor(32, 32, 32))
-    palette.setColor(QPalette.AlternateBase, QColor(48, 48, 48))
-    palette.setColor(QPalette.ToolTipBase, QColor(32, 32, 32))
-    palette.setColor(QPalette.ToolTipText, Qt.white)
-    palette.setColor(QPalette.Text, Qt.white)
-    palette.setColor(QPalette.Button, QColor(96, 96, 96))
-    palette.setColor(QPalette.ButtonText, Qt.white)
-    palette.setColor(QPalette.BrightText, Qt.red)
-    palette.setColor(QPalette.Highlight, QColor(64, 64, 64))
-    palette.setColor(QPalette.HighlightedText, Qt.white)
+    palette.setColor(QPalette.ColorRole.Window, QColor(32, 32, 32))
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
+    palette.setColor(QPalette.ColorRole.Base, QColor(32, 32, 32))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor(48, 48, 48))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(32, 32, 32))
+    palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
+    palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
+    palette.setColor(QPalette.ColorRole.Button, QColor(96, 96, 96))
+    palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
+    palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(64, 64, 64))
+    palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.white)
     app.setPalette(palette)
 
     root = None
     if len(sys.argv) > 1 and os.path.isdir(sys.argv[1]):
         root = sys.argv[1]
-
     win = VersionControlWindow(initial_root=root)
     win.show()
-    sys.exit(app.exec_())
-
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()

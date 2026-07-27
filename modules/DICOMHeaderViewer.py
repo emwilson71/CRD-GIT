@@ -1,6 +1,7 @@
 # -------------------------------------------------------------
 # DICOM Header Viewer (ew)
 # Viewing and Batch Editing
+# Version 1.01 Updated 07/24/26   
 # -------------------------------------------------------------
 import sys
 import os
@@ -97,7 +98,6 @@ class DICOMHeaderViewer(QMainWindow):
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(6)
 
-        # ---------- Top buttons ----------
         top_layout = QHBoxLayout()
 
         self.btn_copy_csv = QPushButton("COPY as CSV")

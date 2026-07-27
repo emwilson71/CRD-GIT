@@ -1,0 +1,22 @@
+{
+    "SERVERAE": {
+        "ip": "172.17.1.30",
+        "ae": "SERVERAE",
+        "port": "105"
+    },
+    "MRSOLUTIONCTR": {
+        "ip": "10.94.56.195",
+        "ae": "MRSOLUTIONCTR",
+        "port": "105"
+    },
+    "MRAPPS": {
+        "ip": "10.94.230.77",
+        "ae": "MRAPPS1",
+        "port": "104"
+    },
+    "AZUREPACS": {
+        "ip": "10.94.141.5",
+        "ae": "AZUREPACS",
+        "port": "3326"
+    }
+}

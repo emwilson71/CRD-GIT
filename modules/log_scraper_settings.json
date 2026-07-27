@@ -1,12 +1,12 @@
 {
     "path": "C:/CRD/downloads",
     "extensions": "acqman-status, .acqsts, .sigusr1, .slg, *snapshot.log",
-    "main_term": "error",
+    "main_term": "list",
     "following_terms": "",
     "main_context": "5,3",
     "following_context": "0,0",
     "save_entries": true,
-    "window_geometry": "1033x753+304+347",
+    "window_geometry": "1033x753+1362+475",
     "log_viewer_geometry": "832x700+333+102",
     "quick_searches": {
         "Coil Search - Octave Head": {

@@ -14,10 +14,10 @@
 1,1,MR,SM TOOLS/SSH Powershell (v6+ Only),c:\crd\modules,ssh_powershell.py
 1,1,MR,SM TOOLS/Purge Log Files (v2.31 Only),c:\crd\modules,purge231logs.py  
 
-1,0,MR,SERVICE TOOLS/Log_Downloader,c:\crd\modules,Log_Downloader_V1_x.pyw,use_current_dat
-1,0,MR,SERVICE TOOLS/Log Scraper,c:\crd\modules,Log_Scraper_V2_x.pyw
+1,0,MR,SERVICE TOOLS/Log_Downloader,c:\crd\modules,Log_Downloader_V1_x,use_current_dat
+2,0,MR,SERVICE TOOLS/Log Scraper,c:\crd\modulesLog_Scraper_V2_x.pyw
 1,0,MR,SERVICE TOOLS/HPM2 Monitor,c:\crd\modules,HPM2_Monitor_V1_x.pyw,use_current_dat path="C:\CRD\DOWNLOADS" recursive=True
 1,0,MR,SERVICE TOOLS/Magnet Statistics (WIN10),c:\crd\modules,magnet_stats.py
 
 2,0,MR,UTILITIES/DICOM Header Viewer,c:\crd\modules,DICOMHeaderViewer.py
-
+2,0,MR,UTILITIES/DICOM Echo,c:\crd\modules,DICOMEcho.py

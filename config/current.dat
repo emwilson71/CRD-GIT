@@ -1,11 +1,10 @@
-SID=341795
-SiteName=COPC COLUMBUS
-SP_IP=172.17.34.227
-Host_IP=172.17.34.226
+SID=79000003
+SiteName=CANON MEDICAL ACADEMY USA
+SP_IP=172.17.208.161
+Host_IP=172.17.208.162
 Display_IP=
-TunnelType=BarracudaF12-TINA
+TunnelType=SP-SSL
 Modality=MR
-
-SW_Version=SM V6.0SP2004*
+Port=10
+SW_Version=SM V9.0SP0032*
 Scanner=Orian_Series(Win10)
-OnActive=1

@@ -10,7 +10,7 @@
   "del /s /q C:\\usr\\tmp\\DBSpaceCheck\\*.txt >> C:\\study\\Utility\\LogPurge.txt 2>&1",
   "del /s /q C:\\MRMPlus\\log\\DBSpaceCheck\\*.txt >> C:\\study\\Utility\\LogPurge.txt 2>&1",
   "del /s /q C:\\MRMPlusPlatform\\log\\OpeLog\\*.opl >> C:\\study\\Utility\\LogPurge.txt 2>&1",
-  "del /s /q C:\\WINDOWS\\system32\\logfiles\\MSFTPSVC1\\* >> C:\\study\\Utility\\LogPurge.txt 2>&1",
+  "del /s /q C:\\WINDOWS\\system32\\logfiles\\MSFTPSVC1\\* >> C:\\study\\Utility\\LogPurge.tx2>&1",
   "del /s /q C:\\WINDOWS\\system32\\logfiles\\W3SVC1\\* >> C:\\study\\Utility\\LogPurge.txt 2>&1",
   "del /s /q C:\\image\\Trace* >> C:\\study\\Utility\\LogPurge.txt 2>&1",
   "del /s /q C:\\image\\Savelog\\*.* >> C:\\study\\Utility\\LogPurge.txt 2>&1",

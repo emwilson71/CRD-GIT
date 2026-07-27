@@ -1,8 +1,9 @@
 # ----------------------------------------------------------------------
-"""
+"""X
 crd_encryptor.py (ew)
 Stores the user.enc with the json values
 Version 1.01 Updated 04/08/25
+
 """
 # ----------------------------------------------------------------------
 import json
@@ -44,7 +45,7 @@ def decrypt_json(enc_path, key):
         decrypted_data = fernet.decrypt(encrypted_data)
         return json.loads(decrypted_data.decode())
     except InvalidToken:
-        raise ValueError("Decryption Failed - Invalid Key")
+        raise ValueError("Decryption failed: Invalid key or corrupted encrypted file.")
 # ----------------------------------------------------------------------
 def update_config(updates, key_path=None, enc_path=None):
     if key_path is None or enc_path is None:
@@ -54,6 +55,7 @@ def update_config(updates, key_path=None, enc_path=None):
         enc_path = enc_path or os.path.join(parent_dir, "config", "user.enc")
 
     if not Path(enc_path).exists() or not Path(key_path).exists():
+        print("No encrypted file or key found. Initializing new config.")
         default_data = {
             "USER": {"vpn_user": "", "vpn_pass": ""},
             "SP_WIN10": {"host_user": "", "host_pass": "", "host_port": ""},

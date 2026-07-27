@@ -42,11 +42,9 @@ def launch_connection(version, host, use_putty=True):
     try:
         credentials_data = decrypt_credentials()
     except Exception as e:
-        print(f"Error decrypting credentials: {e}")
         return
     credentials = map_version_to_credentials(version, credentials_data)
     if not credentials:
-        print(f"No credentials found for version: {version}")
         return
 
     user = credentials["host_user"]
@@ -54,11 +52,9 @@ def launch_connection(version, host, use_putty=True):
     port = credentials["host_port"]
     alt_port = credentials["alt_port"]
 
-    
     port = str(port).strip('"')
     alt_port = str(alt_port).strip('"')
 
-    
     protocol = "ssh" if port == "22" else "telnet"
     if port not in ["22", "21"]:
         protocol = "telnet" if alt_port == "21" else "ssh"
@@ -73,18 +69,16 @@ def launch_connection(version, host, use_putty=True):
             f"{user}@{host}"
         ]
         try:
-            print(f"Launching {protocol} connection for {version} (port {port})")
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"Error launching PuTTY: {e}")
+            pass
     else:
         if protocol == "ssh":
             cmd = ["sshpass", "-p", password, "ssh", "-p", port, f"{user}@{host}"]
         else:
             cmd = ["telnet", host, port]
         try:
-            print(f"Launching {protocol} connection for {version} (port {port})")
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"Error launching {protocol}: {e}")
+            pass
 # ----------------------------------------------------------------------

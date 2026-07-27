@@ -11,6 +11,11 @@
     {
       "name": "INTRANET",
       "url": "https://intranet.cmsu.com/default.aspx"
+    },
+       {
+      "name": "nxVision LINK",
+      "url": "https://nxv.cmsu.com"
     }
+
   ]
 }

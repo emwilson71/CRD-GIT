@@ -1,16 +1,32 @@
-CRD (Canon Remote Diagnostics)
 
-Interface to manage remote connectivity and scripts to preform tasks simply
+CRD (Canon Remote Diagnostics)
+_____________________________________________________________________________________
+
+Interface for MR to manage remote connectivity and scripts to preform tasks simply
 	- Integrated SID Database Manager
 	- VPN Connectivity
-	- Multi-Modality Currently Just MR
+
+_____________________________________________________________________________________
+
+Updates
+	20260720
+		- Added VPN Connection for EDGE-TINA
+		- Streamlined Interface
+		- Updated Python Libraries
+		- Remote Updates via GIT
+		
+		- Working on nxVision Integration
+		- Single Installation with all updates online
+		- Debugging remaining scripts
+		- Port 21 as a fallback for IV WIN7
+
 
 FILE STRUCTURE
-
-TEST
+_____________________________________________________________________________________
 
 CRD/
 ├── CRD.exe
+├── readme.md
 ├── config/
 ├── ├── Configurations .dat .json .enc
 ├── data/
@@ -22,18 +38,17 @@ CRD/
 ├── logs/
 ├── └── Daily Log Files
 ├── modules/
-├── ├── Log_Scraper_V2-77.exe
 ├── ├── Modules for App Tree
+├── ├── /images
 ├── python/
 ├── ├── Python 3.11
-├── readme.md
 ├── scripts/
 ├── ├── CRD.py
-├── ├── __init__.py
-├── ├── canon.png
-├── ├── issues.txt
-└── └── Supporting Scripts
+├── ├── Supporting Scripts
+├── ├── /images
+└── └── └── /icons
 
+_____________________________________________________________________________________
 
  * Copyright (C) 2025 Canon Medical Systems USA All Rights Reserved
  * 
@@ -43,3 +58,4 @@ CRD/
  * permission of the copyright holders.  If you encounter this file and do not have
  * permission, please contact the copyright holders and delete this file.
  * Written by Eric Wilson ewilson@us.medical.canon, Jeremiah Smyser jsmyser@us.medical.canon
+ _____________________________________________________________________________________

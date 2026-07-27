@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------------
 """
 crd_config.py (ew)
-2026.07.17 Updated for ui
+PyQt6
 Version 1.02 Updated 07/17/26
 """
 # ----------------------------------------------------------------------
@@ -9,12 +9,15 @@ import sys
 import json
 import os
 import logging
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QPushButton,
-                             QComboBox, QLabel, QLineEdit, QSizePolicy, QSpacerItem, QFileDialog, QMessageBox)
-from PyQt5.QtCore import Qt, pyqtSignal, QSize
-from PyQt5.QtGui import QPixmap, QIcon
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QCheckBox, QPushButton,
+    QComboBox, QLabel, QLineEdit, QSizePolicy, QSpacerItem, QFileDialog, QMessageBox
+)
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
+from PyQt6.QtGui import QPixmap, QIcon
 from crd_encryptor import update_config
 from crd_embedded import CustomMessageBox, Paths, CRDLogger, Styles
+
 icon_path = lambda name: os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "../html/icons/", name))
 # ----------------------------------------------------------------------
@@ -52,7 +55,6 @@ class ConfigUI(QWidget):
         except Exception as e:
             logging.error(f"[CONFIG] Loading Paths Failed: {type(e).__name__}: {e}")
             self.paths_config = self.get_default_paths_config()
-
         if not isinstance(self.paths_config, dict) or "paths" not in self.paths_config or "settings" not in self.paths_config:
             self.paths_config = self.get_default_paths_config()
         try:
@@ -68,10 +70,7 @@ class ConfigUI(QWidget):
                 "filezilla": r"C:\Program Files\FileZilla FTP Client\filezilla.exe"
             },
             "settings": {
-                "vpnauto": False,
-                #"rdpres": False,
-                #"sidepop": False,
-                #"misc2": False
+                "vpnauto": True
             }
         }
 # ----------------------------------------------------------------------
@@ -126,7 +125,7 @@ class ConfigUI(QWidget):
             raise
 # ----------------------------------------------------------------------
     def init_ui(self):
-        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(5)
@@ -135,49 +134,25 @@ class ConfigUI(QWidget):
             Styles.LINE_EDIT_STYLE +
             Styles.STD_LABEL_STYLE +
             Styles.WIDGET_STYLE +
-            Styles.GROUP_BOX + 
-            Styles.COMBO_BOX
+            Styles.GROUP_BOX +
+            Styles.COMBO_BOX +
+            Styles.CHECKBOX_STYLE
         )
-        
         settings_group = QGroupBox("SETTINGS")
         settings_group.setStyleSheet(Styles.GROUP_BOX)
-        settings_group.setFixedHeight(150)
+        settings_group.setFixedHeight(90)
         settings_layout = QVBoxLayout()
         settings_layout.setContentsMargins(5, 15, 5, 5)
 
         vpnauto_layout = QHBoxLayout()
-        vpnauto_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
+        vpnauto_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum))
         self.vpnauto_cb = QCheckBox("VPN Auto (Use For Auto Connecting to the VPN)")
         self.vpnauto_cb.setChecked(self.paths_config["settings"].get("vpnauto", False))
         self.vpnauto_cb.stateChanged.connect(self.update_settings)
         vpnauto_layout.addWidget(self.vpnauto_cb)
         vpnauto_layout.addStretch()
         settings_layout.addLayout(vpnauto_layout)
-        
-        rdpres_layout = QHBoxLayout()
-        rdpres_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
-        self.rdpres_cb = QCheckBox("WIP Dark Theme")
-        self.rdpres_cb.setChecked(self.paths_config["settings"].get("rdpres", False))
-        rdpres_layout.addWidget(self.rdpres_cb)
-        rdpres_layout.addStretch()
-        settings_layout.addLayout(rdpres_layout)
 
-        sidepop_layout = QHBoxLayout()
-        sidepop_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
-        self.sidepop_cb = QCheckBox("NA")
-        self.sidepop_cb.setChecked(self.paths_config["settings"].get("sidepop", False))
-        sidepop_layout.addWidget(self.sidepop_cb)
-        sidepop_layout.addStretch()
-        settings_layout.addLayout(sidepop_layout)
-
-        misc2_layout = QHBoxLayout()
-        misc2_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Fixed, QSizePolicy.Minimum))
-        self.misc2_cb = QCheckBox("NA ")
-        self.misc2_cb.setChecked(self.paths_config["settings"].get("misc2", False))
-        misc2_layout.addWidget(self.misc2_cb)
-        misc2_layout.addStretch()
-        settings_layout.addLayout(misc2_layout)
-        
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
 
@@ -187,11 +162,11 @@ class ConfigUI(QWidget):
         credentials_layout = QVBoxLayout()
         credentials_layout.setContentsMargins(5, 5, 5, 5)
         credentials_layout.setSpacing(5)
-        credentials_layout.addSpacerItem(QSpacerItem(0, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        credentials_layout.addSpacerItem(QSpacerItem(0, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         fields_layout = QHBoxLayout()
         fields_layout.setSpacing(10)
-        fields_layout.setAlignment(Qt.AlignLeft)
+        fields_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.section_combo = QComboBox()
         self.section_combo.setStyleSheet(Styles.COMBO_BOX)
@@ -199,7 +174,7 @@ class ConfigUI(QWidget):
             "USER", "SP_WIN10", "SP_WIN7", "MR_MP6+", "MR_MP3-5", "MR_MP2", "MR_GP"
         ])
         self.section_combo.setFixedWidth(150)
-        self.section_combo.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.section_combo.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.section_combo.currentIndexChanged.connect(self.update_credentials_fields)
         fields_layout.addWidget(self.section_combo)
 
@@ -210,7 +185,7 @@ class ConfigUI(QWidget):
         username_sub_layout.addWidget(self.username_label)
         self.username_edit = QLineEdit()
         self.username_edit.setFixedWidth(150)
-        self.username_edit.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.username_edit.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         username_sub_layout.addWidget(self.username_edit)
         fields_layout.addLayout(username_sub_layout)
 
@@ -221,13 +196,14 @@ class ConfigUI(QWidget):
         password_sub_layout.addWidget(self.password_label)
         self.password_edit = QLineEdit()
         self.password_edit.setFixedWidth(150)
-        self.password_edit.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
-        self.password_edit.setEchoMode(QLineEdit.Password)
+        self.password_edit.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
+        self.password_edit.setEchoMode(QLineEdit.EchoMode.Password)
         password_sub_layout.addWidget(self.password_edit)
         fields_layout.addLayout(password_sub_layout)
+
         fields_layout.addStretch()
         credentials_layout.addLayout(fields_layout)
-        credentials_layout.addSpacerItem(QSpacerItem(0, 10, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        credentials_layout.addSpacerItem(QSpacerItem(0, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
         credentials_group.setLayout(credentials_layout)
         main_layout.addWidget(credentials_group)
 
@@ -238,7 +214,7 @@ class ConfigUI(QWidget):
         paths_layout.setContentsMargins(5, 15, 5, 5)
         paths_layout.setSpacing(5)
 
-# PuTTY
+        # PuTTY
         putty_field_layout = QHBoxLayout()
         putty_field_layout.setSpacing(10)
         self.putty_label = QLabel(" PuTTY:")
@@ -246,20 +222,20 @@ class ConfigUI(QWidget):
         putty_field_layout.addWidget(self.putty_label)
         self.putty_edit = QLineEdit()
         self.putty_edit.setFixedWidth(350)
-        self.putty_edit.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.putty_edit.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.putty_edit.setText(self.paths_config['paths'].get('putty', ''))
         putty_field_layout.addWidget(self.putty_edit)
         self.putty_browse_btn = QPushButton("+")
         self.putty_browse_btn.setStyleSheet(Styles.BUTTON_STYLE)
         self.putty_browse_btn.setFixedWidth(30)
         self.putty_browse_btn.setFixedHeight(30)
-        self.putty_browse_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.putty_browse_btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.putty_browse_btn.clicked.connect(self.browse_putty_path)
         putty_field_layout.addWidget(self.putty_browse_btn)
         putty_field_layout.addStretch()
         paths_layout.addLayout(putty_field_layout)
 
-# FileZilla
+        # FileZilla
         filezilla_field_layout = QHBoxLayout()
         filezilla_field_layout.setSpacing(10)
         self.filezilla_label = QLabel("FileZilla:")
@@ -267,14 +243,14 @@ class ConfigUI(QWidget):
         filezilla_field_layout.addWidget(self.filezilla_label)
         self.filezilla_edit = QLineEdit()
         self.filezilla_edit.setFixedWidth(350)
-        self.filezilla_edit.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.filezilla_edit.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.filezilla_edit.setText(self.paths_config['paths'].get('filezilla', ''))
         filezilla_field_layout.addWidget(self.filezilla_edit)
         self.filezilla_browse_btn = QPushButton("+")
         self.filezilla_browse_btn.setStyleSheet(Styles.BUTTON_STYLE)
         self.filezilla_browse_btn.setFixedWidth(30)
         self.filezilla_browse_btn.setFixedHeight(30)
-        self.filezilla_browse_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.filezilla_browse_btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.filezilla_browse_btn.clicked.connect(self.browse_filezilla_path)
         filezilla_field_layout.addWidget(self.filezilla_browse_btn)
         filezilla_field_layout.addStretch()
@@ -290,14 +266,13 @@ class ConfigUI(QWidget):
         self.save_btn.setIconSize(QSize(24, 24))
         self.save_btn.setStyleSheet(Styles.BUTTON_STYLE)
         self.save_btn.setFixedWidth(130)
-        self.save_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+        self.save_btn.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.save_btn.clicked.connect(self.save_all)
         save_layout.addWidget(self.save_btn)
         save_layout.addStretch()
         main_layout.addLayout(save_layout)
         main_layout.addStretch()
 
-# HEIGHT SETTINGS, CREDENTIALS, PATHS, SAVE, STRETCH
         total_height = 150 + 90 + 150 + 30 + 100
         self.setFixedHeight(total_height)
         self.update_credentials_fields()
@@ -325,9 +300,7 @@ class ConfigUI(QWidget):
         self.paths_config["paths"]["putty"] = putty_path
         self.paths_config["paths"]["filezilla"] = filezilla_path
         self.paths_config["settings"]["vpnauto"] = self.vpnauto_cb.isChecked()
-        self.paths_config["settings"]["rdpres"] = self.rdpres_cb.isChecked()
-        self.paths_config["settings"]["sidepop"] = self.sidepop_cb.isChecked()
-        self.paths_config["settings"]["misc2"] = self.misc2_cb.isChecked()
+        # Note: rdpres / sidepop / misc2 checkboxes are currently commented out in the UI
         self.save_paths_config()
         self.config_updated.emit()
 # ----------------------------------------------------------------------
@@ -367,9 +340,6 @@ class ConfigUI(QWidget):
 # ----------------------------------------------------------------------
     def update_settings(self):
         self.paths_config["settings"]["vpnauto"] = self.vpnauto_cb.isChecked()
-        self.paths_config["settings"]["rdpres"] = self.rdpres_cb.isChecked()
-        self.paths_config["settings"]["sidepop"] = self.sidepop_cb.isChecked()
-        self.paths_config["settings"]["misc2"] = self.misc2_cb.isChecked()
         try:
             self.save_paths_config()
             self.config_updated.emit()
@@ -381,7 +351,7 @@ class ConfigUI(QWidget):
     def update_credentials_fields(self):
         section = self.section_combo.currentText()
         norm_section = self.section_map.get(section.lower(), section)
-        credentials = self.config.get(norm_section, {}).get("credentials", {})
+        credentials = self.config.get(norm_section, {}).get("credentials", {}) if self.config else {}
         self.username_edit.setText(credentials.get("host_user", ""))
         self.password_edit.setText(credentials.get("host_pass", ""))
 # ----------------------------------------------------------------------
