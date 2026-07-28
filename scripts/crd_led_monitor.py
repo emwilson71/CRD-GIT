@@ -3,7 +3,7 @@
 crd_led_monitor (ew)
 PyQt6
 Manages Connectivity For the VPN DB /LED
-Version 1.06 Updated 07/10/26
+Version 2.00 Updated 07/10/26
 """
 # ----------------------------------------------------------------------
 import sys, os, time

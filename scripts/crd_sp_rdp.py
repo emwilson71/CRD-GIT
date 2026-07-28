@@ -3,7 +3,7 @@
 crd_sp_rdp.py (ew)
 SP RDP for WIN10
 - Needs to use enc credentials and variable for screen size
-Version 1.01 Updated 07/08/26
+Version 2.00 Updated 07/08/26
 """
 # ------------------------------------------------------------------------
 # LIBRARIES

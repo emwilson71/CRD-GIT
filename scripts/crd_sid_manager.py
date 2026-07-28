@@ -7,7 +7,7 @@ jsmyser made a few tweaks on 10/03/25
 JS_EDITS 25.12.24
 JS_EDITS 2026.03.05 Fixed tables from missing data during refresh.
 EW_EDIT 2026.07.17 Added icons to match ui
-Version 1.03 Updated 07/17/26
+Version 2.00 Updated 07/17/26
 """
 # ------------------------------------------------------------------------
 import sys

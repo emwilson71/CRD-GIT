@@ -1,8 +1,9 @@
 # ------------------------------------------------------------------------
 """
 crd_connectvpn.py (ew)
+PyQt6
 Connect to mySQL and SP for site information
-Version 1.20 Updated 07/10/26
+Version 2.00 Updated 07/10/26
 """
 # ------------------------------------------------------------------------
 import os
@@ -16,8 +17,8 @@ import configparser
 import ftplib
 import io
 import re
-from PyQt5.QtWidgets import QMessageBox, QLineEdit, QLabel, QApplication, QDialog, QVBoxLayout, QProgressBar, QSpacerItem, QSizePolicy, QPushButton
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtWidgets import QMessageBox, QLineEdit, QLabel, QApplication, QDialog, QVBoxLayout, QProgressBar, QSpacerItem, QSizePolicy, QPushButton
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from crd_embedded import CustomMessageBox, Paths, CRDLogger
 from cryptography.fernet import Fernet
 from crd_sid_manager import SIDDatabase
@@ -332,18 +333,18 @@ class LoadingDialog(QDialog):
         """
         self.setStyleSheet(dark_style)
         layout = QVBoxLayout()
-        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.label = QLabel("Collecting Data From VPN Server")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)
-        self.progress.setAlignment(Qt.AlignCenter)
+        self.progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.progress)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.cancel_operation)
         layout.addWidget(self.cancel_button)
-        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.setLayout(layout)
 # ------------------------------------------------------------------------
     def set_message(self, message):
@@ -540,7 +541,7 @@ def save_to_json(sid, main_app):
             "display_ip": [], 
             "tunnel": [t.strip() for t in main_app.tunnel_edit_box.text().split(",") if t.strip()] if hasattr(main_app, "tunnel_edit_box") and isinstance(main_app.tunnel_edit_box, QLineEdit) else [],
             "modality": ["MR"],
-            "port": main_app.port_edit_box.text() if hasattr(main_app, "port_edit_box") and isinstance(main_app.port_edit_box, QLineEdit) else "",
+            # "port": main_app.port_edit_box.text() if hasattr(main_app, "port_edit_box") and isinstance(main_app.port_edit_box, QLineEdit) else "",
             "machine": main_app.edit_boxes.get("machine", QLineEdit()).text() if hasattr(main_app, "edit_boxes") and isinstance(main_app.edit_boxes.get("machine"), QLineEdit) else "",
             "sw_version": main_app.edit_boxes.get("sw_version", QLineEdit()).text() if hasattr(main_app, "edit_boxes") and isinstance(main_app.edit_boxes.get("sw_version"), QLineEdit) else "",
             "note": [n.strip() for n in main_app.note_edit_box.text().split(",") if n.strip()] if hasattr(main_app, "note_edit_box") and isinstance(main_app.note_edit_box, QLineEdit) else []
@@ -594,9 +595,9 @@ def query_sid(sid, main_app=None, creds_dict=None):
             except Exception as e:
                 logger.error(f"[CONNECTVPN] Failed to Update Edit Boxes for SID {sid}: {e}", extra={"tag": tag})
                 if main_app:
-                    QMessageBox.critical(main_app, "Error", f"Failed to update edit boxes: {e}")
+                    QMessageBox.critical(main_app, "Error", f"Failed to Update Edit Boxes: {e}")
         dialog.accept()
-        logger.info("[CONNECTVPN] Outputting JSON data", extra={"tag": tag})
+        logger.info("[CONNECTVPN] Outputting JSON Data", extra={"tag": tag})
         print(json.dumps(data))
 # ------------------------------------------------------------------------
     def on_query_failed(error):
@@ -616,7 +617,7 @@ def query_sid(sid, main_app=None, creds_dict=None):
     thread.query_finished.connect(on_query_finished)
     thread.query_failed.connect(on_query_failed)
     thread.start()
-    app.exec_()
+    app.exec()
     if thread.isRunning():
         thread.requestInterruption()
         thread.wait(1000)
@@ -633,7 +634,7 @@ def main():
             logger.error("[CONNECTVPN] No SID Provided", extra={"tag": tag})
             sys.exit(1)
         arg = sys.argv[1]
-        logger.info(f"[CONNECTVPN] Received SID argument: {arg}", extra={"tag": tag})
+        logger.info(f"[CONNECTVPN] Received SID Argument: {arg}", extra={"tag": tag})
         if arg.replace('-', '').isdigit():
             query_sid(arg)
         else:

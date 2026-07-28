@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------------
 """
 crd_matrix.py (ew)
+PyQt6
 Decodes sw versions and passwords for connectivity
 jsmyser changed port = 2025.12.16. See JS Edit.
 Version 1.10 Updated 12/16/25
@@ -19,7 +20,7 @@ import shutil
 import socket
 import urllib.parse
 from cryptography.fernet import Fernet
-from PyQt5.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox
 from contextlib import contextmanager
 # MODULES
 from crd_embedded import CustomMessageBox, Paths, CRDLogger, Styles

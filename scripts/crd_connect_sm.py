@@ -1,8 +1,9 @@
 # ------------------------------------------------------------------------
-"""/ Check and change to SSH Win7 (ew)
+""" Check and change to SSH Win7 (ew)
 crd_connectvpn.py
+PyQt6
 Connect to mySQL and SP for site information
-Version 1.00 Updated 08/03/25
+Version 2.00 Updated 07/25/26
 """
 # ------------------------------------------------------------------------
 import os
@@ -16,8 +17,8 @@ import configparser
 import ftplib
 import io
 import re
-from PyQt5.QtWidgets import QMessageBox, QLineEdit, QLabel, QApplication, QDialog, QVBoxLayout, QProgressBar, QSpacerItem, QSizePolicy, QPushButton
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtWidgets import QMessageBox, QLineEdit, QLabel, QApplication, QDialog, QVBoxLayout, QProgressBar, QSpacerItem, QSizePolicy, QPushButton
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from crd_embedded import CustomMessageBox, Paths, CRDLogger
 from cryptography.fernet import Fernet
 from crd_sid_manager import SIDDatabase
@@ -114,7 +115,7 @@ def read_credentials(ini_data=None):
     if is_win10 or not is_pre_v6:
         return [default_credentials[0]] + default_credentials[1:]
     return default_credentials
-
+# ------------------------------------------------------------------------
 # WRITEOUT TO current.dat
 def write_current_dat(data):
     tag = "CURRENT_DAT"
@@ -124,7 +125,7 @@ def write_current_dat(data):
             json.dump(data, f, indent=2)
     except Exception as e:
         logger.error(f"[CONNECTVPN] Failed to write to {current_file_path}: {e}", extra={"tag": tag})
-
+# ------------------------------------------------------------------------
 # SFTP for WIN10, FTP for WIN7
 def establish_ssh_connection(spip, remote_path, creds_dict):
     tag = "CONNECTION"
@@ -246,7 +247,7 @@ def establish_ssh_connection(spip, remote_path, creds_dict):
                     ftp.quit()
     logger.error(f"[CONNECTVPN] All Connection Attempts Failed for {spip}", extra={"tag": tag})
     return None
-
+# ------------------------------------------------------------------------
 # PARSE INI
 def parse_ini_data(ini_data, sid=None, existing_modality=None):
     tag = "PARSE"
@@ -371,7 +372,6 @@ def parse_ini_data(ini_data, sid=None, existing_modality=None):
     except Exception as e:
         logger.error(f"[CONNECTVPN] Error Parsing INI Data: {e}", extra={"tag": tag})
         return None
-
 # ------------------------------------------------------------------------
 class LoadingDialog(QDialog):
     def __init__(self, query_thread=None):
@@ -410,24 +410,24 @@ class LoadingDialog(QDialog):
         """
         self.setStyleSheet(dark_style)
         layout = QVBoxLayout()
-        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.label = QLabel("Collecting Data From VPN Server")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)
-        self.progress.setAlignment(Qt.AlignCenter)
+        self.progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.progress)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.cancel_operation)
         layout.addWidget(self.cancel_button)
-        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         self.setLayout(layout)
-
+# ------------------------------------------------------------------------
     def set_message(self, message):
         self.label.setText(message)
         QApplication.processEvents()
-
+# ------------------------------------------------------------------------
     def cancel_operation(self):
         tag = "DIALOG"
         logger.info("[CONNECTVPN] Cancel Button Clicked", extra={"tag": tag})
@@ -440,11 +440,10 @@ class LoadingDialog(QDialog):
                 self.query_thread.terminate()
                 self.query_thread.wait()
         self.reject()
-
+# ------------------------------------------------------------------------
     def closeEvent(self, event):
         self.cancel_operation()
         event.accept()
-
 # ------------------------------------------------------------------------
 class QueryThread(QThread):
     update_message = pyqtSignal(str)
@@ -456,7 +455,7 @@ class QueryThread(QThread):
         self.sid = sid
         self.main_app = main_app
         self.creds_dict = None
-
+# ------------------------------------------------------------------------
     def run(self):
         tag = "QUERY"
         if self.isInterruptionRequested():
@@ -538,7 +537,6 @@ class QueryThread(QThread):
         except Exception as e:
             logger.error(f"[CONNECTVPN] Query SID {self.sid}: {e}", extra={"tag": tag})
             self.query_failed.emit(str(e))
-
 # ------------------------------------------------------------------------
 def get_ips(sid):
     tag = "DB"
@@ -597,7 +595,6 @@ def get_ips(sid):
             cursor.close()
         if connection:
             connection.close()
-
 # ------------------------------------------------------------------------
 def save_to_json(sid, main_app):
     tag = "SAVE_JSON"
@@ -665,27 +662,26 @@ def query_sid(sid, main_app=None, creds_dict=None):
                     logger.info(f"[CONNECTVPN] Updated Modality with: {data['Modality']}", extra={"tag": tag})
                 if hasattr(main_app, 'port_edit_box') and isinstance(main_app.port_edit_box, QLineEdit):
                     main_app.port_edit_box.setText(data["port"])
-                    logger.info(f"[CONNECTVPN] Updated port_edit_box with: {data['port']}", extra={"tag": tag})
+                    logger.info(f"[CONNECTVPN] Updated port_edit_box With: {data['port']}", extra={"tag": tag})
                 if hasattr(main_app, 'dynamic_header') and isinstance(main_app.dynamic_header, QLabel):
                     hosp_name = data["HospName"]
                     if hosp_name.startswith("PreInstall:"):
                         hosp_name = hosp_name[len("PreInstall:"):].strip()
                     main_app.dynamic_header.setText(hosp_name)
-                    logger.info(f"[CONNECTVPN] Updated dynamic_header with: {hosp_name}", extra={"tag": tag})
+                    logger.info(f"[CONNECTVPN] Updated Dynamic Header With: {hosp_name}", extra={"tag": tag})
             except Exception as e:
                 logger.error(f"[CONNECTVPN] Failed to Update Edit Boxes for SID {sid}: {e}", extra={"tag": tag})
                 if main_app:
                     QMessageBox.critical(main_app, "Error", f"Failed to update edit boxes: {e}")
         dialog.accept()
         logger.info("[CONNECTVPN] Outputting JSON data", extra={"tag": tag})
-        print(json.dumps(data))
+# ------------------------------------------------------------------------
     def on_query_failed(error):
         tag = "QUERY_SID"
         logger.error(f"Query failed: {error}", extra={"tag": tag})
         if main_app:
             QMessageBox.critical(main_app, "Error", f"Query SID {sid} failed: {error}")
         dialog.accept()
-        print(f"Error: {error}", file=sys.stderr)
         if thread.isRunning():
             thread.requestInterruption()
             thread.wait(1000)
@@ -696,7 +692,7 @@ def query_sid(sid, main_app=None, creds_dict=None):
     thread.query_finished.connect(on_query_finished)
     thread.query_failed.connect(on_query_failed)
     thread.start()
-    app.exec_()
+    app.exec()
     if thread.isRunning():
         thread.requestInterruption()
         thread.wait(1000)

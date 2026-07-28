@@ -11,6 +11,10 @@
         "sidepop": false,
         "misc2": false
     },
+    "url": {
+        "urlname": "INTRANET",
+        "defaulturl": "https://intranet.cmsu.com/default.aspx"
+    },
     "colors": {
         "menu_background": "#202020",
         "menu_text": "#FFFFFF",

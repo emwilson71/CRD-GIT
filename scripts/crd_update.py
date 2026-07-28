@@ -1,7 +1,7 @@
 # ----------------------------------------------------------------------
 # crd_update.py - Remote Update Module for Public Repo
 # PyQt6
-# Version 1.04 - Updated 07/22/26
+# Version 2.00 - Updated 07/22/26
 # ----------------------------------------------------------------------
 import sys
 import os

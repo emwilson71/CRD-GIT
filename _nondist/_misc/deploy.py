@@ -16,16 +16,14 @@ def run_command(cmd):
 # ------------------------------------------------------------------------
 def deploy():
     os.chdir(r"C:\CRD-GIT")
-    
     print("CRD Deploy Script")
     run_command("git add .")
     
     status = subprocess.getoutput("git status --porcelain")
     if status:
-        message = input("Enter commit message: ") or "Auto Update From Deploy"
+        message = input("Enter Commit Message: ") or "Auto Update From Deploy"
         run_command(f'git commit -m "{message}"')
     else:
-        print("No changes to commit.")
         return
 
     if run_command("git push"):

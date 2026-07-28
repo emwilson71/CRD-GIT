@@ -1,5 +1,5 @@
 """
-Version 1.00 Updated 07/22/26
+Version 2.00 Updated 07/22/26
 crd_sidebar.py for CRD (ew)
 PyQt6
 Embedded Sidebar for Diagnostics

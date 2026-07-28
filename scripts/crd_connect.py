@@ -140,7 +140,7 @@ def establish_connection(spip, creds_dict, test_path=r"C:\InnerVision.dir\Comm.d
                 sftp.listdir(dir_path)  
                 logger.info(f"[CONNECT] Directory listing successful for {dir_path}", extra={"tag": tag})
                 
-                conn = sftp  # Return SFTP client
+                conn = sftp  
                 successful_creds = credentials
                 break
           

@@ -1,21 +1,20 @@
 {
-  "links": [
-    {
-      "name": "CRD Home",
-      "url": "html/index.html"
-    },
-    {
-      "name": "HELP",
-      "url": "html/help.html"
-    },
-    {
-      "name": "INTRANET",
-      "url": "https://intranet.cmsu.com/default.aspx"
-    },
-       {
-      "name": "nxVision LINK",
-      "url": "https://nxv.cmsu.com"
-    }
-
-  ]
+    "links": [
+        {
+            "name": "",
+            "url": ""
+        },
+        {
+            "name": "INTRANET",
+            "url": "https://intranet.cmsu.com/default.aspx"
+        },
+        {
+            "name": "HELP",
+            "url": "html/help.html"
+        },
+        {
+            "name": "nxVision LINK",
+            "url": "https://nxv.cmsu.com"
+        }
+    ]
 }
