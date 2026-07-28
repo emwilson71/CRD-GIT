@@ -1,12 +1,11 @@
 """
-Version 2.00 Updated 07/22/26
 crd_sidebar.py for CRD (ew)
 PyQt6
 Embedded Sidebar for Diagnostics
 Updated to parse 6-field Apptree.dat format (A,B,C,D,E,F,G)
 Added double-click execution for tree items
 2025.10.14 Added buttons in QTreeWidget and argument support from apptree.dat, JS
-Version 1.03 Updated 7/22/26
+Version 2.00 Updated 7/22/26
 Changed A
   0 = Hidden
   1 = Visible and Executable
@@ -16,7 +15,6 @@ Changed A
 import sys
 import os
 import subprocess
-
 from PyQt6.QtWidgets import (
     QApplication, QTreeWidget, QTreeWidgetItem, QMessageBox, QSizePolicy
 )
@@ -53,7 +51,6 @@ class AppTreeWidget(QTreeWidget):
         if not criteria_met:
             self._load_flag_2_entries()
             return
-
         file_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)),
             "config",
@@ -62,17 +59,13 @@ class AppTreeWidget(QTreeWidget):
         if not os.path.exists(file_path):
             logger.error(f"[SIDEBAR] File Not Found: {file_path}")
             return
-
         try:
             with open(file_path, "r") as file:
                 lines = file.readlines()
-
             parent_items = {}
             item_count = 0
-
             self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
             self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
             for line_num, line in enumerate(lines, 1):
                 line = line.strip()
                 if line.startswith("#") or not line:
@@ -81,10 +74,8 @@ class AppTreeWidget(QTreeWidget):
                 if len(parts) < 6:
                     logger.warning(f"[SIDEBAR] Line {line_num}: Invalid Format - {line}")
                     continue
-
                 flag_a, flag_b, file_modality, path, module_folder, filename = parts[:6]
                 argument = parts[6] if len(parts) > 6 else ""
-
                 if flag_a not in ["1", "2"]:
                     continue
                 if file_modality != modality:
@@ -95,19 +86,15 @@ class AppTreeWidget(QTreeWidget):
                     continue
                 if not os.path.exists(module_folder):
                     continue
-
                 path_parts = path.split("/")
                 for i, part in enumerate(path_parts):
                     current_path = "/".join(path_parts[:i+1])
                     parent_path = "/".join(path_parts[:i])
                     if current_path in parent_items:
                         continue
-
                     is_leaf = (i == len(path_parts) - 1)
                     display_name = part
-
                     item = QTreeWidgetItem([display_name])
-
                     if is_leaf:
                         item.setData(0, Qt.ItemDataRole.UserRole, {
                             "A": flag_a,
@@ -121,16 +108,13 @@ class AppTreeWidget(QTreeWidget):
                         item_count += 1
                     else:
                         item.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
-
                     if parent_path == "":
                         self.addTopLevelItem(item)
                         item.setExpanded(True)
                     else:
                         if parent_path in parent_items:
                             parent_items[parent_path].addChild(item)
-
                     parent_items[current_path] = item
-
             self.update()
             self.viewport().update()
             self.repaint()
@@ -157,10 +141,8 @@ class AppTreeWidget(QTreeWidget):
                         parts = [p.strip() for p in line.split(",")]
                         if len(parts) < 6:
                             continue
-
                         flag_a, flag_b, file_modality, path, module_folder, filename = parts[:6]
                         argument = parts[6] if len(parts) > 6 else ""
-
                         if flag_a != "2":
                             continue
                         if not filename or not any(filename.endswith(ext) for ext in [".py", ".pyw", ".exe"]):
@@ -170,21 +152,15 @@ class AppTreeWidget(QTreeWidget):
                         if not os.path.exists(module_folder):
                             logger.debug(f"[SIDEBAR] Module Folder Not Found: {module_folder}")
                             continue
-
                         path_parts = path.split("/")
-
                         for i, part in enumerate(path_parts):
                             current_path = "/".join(path_parts[:i+1])
                             parent_path = "/".join(path_parts[:i])
-
                             if current_path in parent_items:
                                 continue
-
                             is_leaf = (i == len(path_parts) - 1)
                             display_name = part
-
                             item = QTreeWidgetItem([display_name])
-
                             if is_leaf:
                                 item.setData(0, Qt.ItemDataRole.UserRole, {
                                     "A": flag_a,
@@ -198,23 +174,18 @@ class AppTreeWidget(QTreeWidget):
                                 item_count += 1
                             else:
                                 item.setChildIndicatorPolicy(QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
-
                             if parent_path == "":
                                 self.addTopLevelItem(item)
                                 item.setExpanded(True)
                             else:
                                 if parent_path in parent_items:
                                     parent_items[parent_path].addChild(item)
-
                             parent_items[current_path] = item
-
                 except Exception as e:
                     logger.warning(f"[SIDEBAR] Error Reading {file_path}: {e}")
-
             self.update()
             self.viewport().update()
             self.repaint()
-
         except Exception as e:
             logger.error(f"[SIDEBAR] Failed to Load {e}", exc_info=True)
 # ------------------------------------------------------------------------
@@ -225,31 +196,24 @@ class AppTreeWidget(QTreeWidget):
         data = selected_item.data(0, Qt.ItemDataRole.UserRole)
         if not data:
             return
-
         flag_a = data.get("A")
         flag_b = data.get("B")
         module_folder = data.get("E")
         filename = data.get("F")
         argument = data.get("G", "")
-
         if flag_a not in ["1", "2"]:
             logger.error(f"[SIDEBAR] Invalid Flag {flag_a}")
             return
-
         if not module_folder or not filename:
             logger.error(f"[SIDEBAR] Invalid Paths module_folder={module_folder}, filename={filename}")
             return
-
         app_path = os.path.normpath(os.path.join(module_folder, filename))
-
         if not os.path.exists(app_path):
             logger.error(f"[SIDEBAR] App Path Not Found: {app_path}")
             return
-
         if os.path.isdir(app_path):
             logger.error(f"[SIDEBAR] Path is a Directory {app_path}")
             return
-
         if flag_b == "1":
             self.show_popup(app_path, argument)
         else:
@@ -269,55 +233,58 @@ class AppTreeWidget(QTreeWidget):
         msg_box.setStandardButtons(
             QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok
         )
-        msg_box.setStyleSheet(Styles.BUTTON_STYLE)
-
         result = msg_box.exec()
         if result == QMessageBox.StandardButton.Ok:
             self.execute_app(app_path, argument)
 # ------------------------------------------------------------------------
-# STRIP DIR STRUCTURE
-    def execute_app(self, app_path: str):
+    def execute_app(self, app_path: str, argument: str = ""):
         try:
             full_path = app_path.replace("/", "\\")
             if not os.path.exists(full_path):
                 raise FileNotFoundError(f"The File '{full_path}' Does Not Exist.")
-            if full_path.endswith('.py'):
-                result = subprocess.run(
-                    [sys.executable, full_path],
-                    check=True,
-                    capture_output=True,
-                    text=True
-                )
-            elif full_path.endswith('.exe'):
-                result = subprocess.run(
-                    [full_path],
-                    check=True,
-                    capture_output=True,
-                    text=True
-                )
+
+            cmd = []
+            if full_path.lower().endswith(('.py', '.pyw')):
+                cmd = [sys.executable, full_path]
+            elif full_path.lower().endswith('.exe'):
+                cmd = [full_path]
             else:
                 raise ValueError(f"[FRAMEWORK] Unsupported File Type: '{full_path}'")
-            self.show_execution_output(result.stdout)
-        except FileNotFoundError as fnfe:
-            self.handle_error(f"[FRAMEWORK] File Not Found")
+
+            if argument:
+                cmd.append(argument)
+
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            #self.show_execution_output(result.stdout)
+        except FileNotFoundError:
+            self.handle_error("[FRAMEWORK] File Not Found")
+        except subprocess.CalledProcessError as e:
+            self.handle_error(f"[FRAMEWORK] Execution Failed:\n{e.stderr or e}")
+        except Exception as e:
+            self.handle_error(f"[FRAMEWORK] Unexpected Error: {e}")
 # ------------------------------------------------------------------------
     def show_execution_output(self, output: str):
-        msg_box = QMessageBox(self.main_window)
+        msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Execution Output")
-        msg_box.setText(output)
+        msg_box.setText(output if output else "(No output)")
         msg_box.exec()
 # ------------------------------------------------------------------------
     def handle_error(self, error_message: str):
-        logging.error(error_message)
-        msg_box = QMessageBox(self.main_window)
+        logger.error(error_message)
+        msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Error")
         msg_box.setText(error_message)
         msg_box.setIcon(QMessageBox.Icon.Critical)
         msg_box.exec()
 # ------------------------------------------------------------------------
     def show_error(self, error_message: str):
-        logging.error(error_message)
-        msg_box = QMessageBox(self.main_window)
+        logger.error(error_message)
+        msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Thread Error")
         msg_box.setText(error_message)
         msg_box.setIcon(QMessageBox.Icon.Critical)

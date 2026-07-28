@@ -164,7 +164,7 @@ class ConfigUI(QWidget):
         vpnauto_layout.addWidget(self.vpnauto_cb)
         vpnauto_layout.addStretch()
         settings_layout.addLayout(vpnauto_layout)
-        """
+        
         autoupdate_layout = QHBoxLayout()
         autoupdate_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum))
         self.autoupdate_cb = QCheckBox("WIP Check for Updates on Load")
@@ -175,7 +175,7 @@ class ConfigUI(QWidget):
         autoupdate_layout.addWidget(self.autoupdate_cb)
         autoupdate_layout.addStretch()
         settings_layout.addLayout(autoupdate_layout)
-        """
+        
         settings_group.setLayout(settings_layout)
         main_layout.addWidget(settings_group)
 
