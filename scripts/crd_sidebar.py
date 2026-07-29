@@ -5,7 +5,7 @@ Embedded Sidebar for Diagnostics
 Updated to parse 6-field Apptree.dat format (A,B,C,D,E,F,G)
 Added double-click execution for tree items
 2025.10.14 Added buttons in QTreeWidget and argument support from apptree.dat, JS
-Version 2.00 Updated 7/22/26
+Version 2.00 Updated 07/17/26
 Changed A
   0 = Hidden
   1 = Visible and Executable
